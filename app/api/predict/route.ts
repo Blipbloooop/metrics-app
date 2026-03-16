@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
     }),
 
     // Historique des 10 dernières prédictions du node
-    prisma.predictions.findMany({
+    prisma.prediction.findMany({
       where: { node_id: input.node_id },
       orderBy: { predicted_at: 'desc' },
       take: 10,

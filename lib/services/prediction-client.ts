@@ -1,5 +1,5 @@
 const PREDICTION_SERVICE_URL =
-  process.env.PREDICTION_SERVICE_URL ?? 'http://prediction-service.ai-module:3001'
+  process.env.PREDICTION_SERVICE_URL ?? 'http://prediction-service.ai-module.svc.cluster.local:3001'
 
 export interface PredictionServiceResponse {
   request_id: string

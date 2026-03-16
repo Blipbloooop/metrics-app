@@ -117,12 +117,10 @@ class K8sMetricsCollector {
         ? await enrichPodMetricsFromPrometheus(podMetrics)
         : podMetrics;
 
-      // Stocker dans la base de données
+      // Stocker dans la base de données (seules les métriques node vont en DB)
       await storeRawMetrics({
         timestamp: new Date(),
         nodes: nodeMetrics,
-        pods: podMetrics,
-        services: serviceMetrics,
       });
 
       const duration = Date.now() - startTime;

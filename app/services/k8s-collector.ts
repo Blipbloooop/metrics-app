@@ -15,7 +15,6 @@ import {
 } from "@/app/types/metrics";
 import { normalizeMetrics } from "@/utils/normalizer";
 import { storeRawMetrics } from "@/app/services/metrics-storage";
-import prisma from '@/lib/prisma';
 import { enrichNodeMetricsFromPrometheus, enrichPodMetricsFromPrometheus } from "./prometheus-collector";
 
 class K8sMetricsCollector {
@@ -109,7 +108,7 @@ class K8sMetricsCollector {
         this.collectServiceMetrics(),
       ]);
 
-      const enrichedNodes = process.env.PROMETHEUS_ENABLED === 'true' 
+      const enrichedNodes = process.env.PROMETHEUS_ENABLED === 'true'
         ? await enrichNodeMetricsFromPrometheus(nodeMetrics)
         : nodeMetrics;
 
@@ -120,8 +119,11 @@ class K8sMetricsCollector {
       // Stocker dans la base de données (seules les métriques node vont en DB)
       await storeRawMetrics({
         timestamp: new Date(),
-        nodes: nodeMetrics,
+        nodes: enrichedNodes,
       });
+
+      // Log pour traçabilité (pods/services enrichis disponibles pour usage futur)
+      void enrichedPods;
 
       const duration = Date.now() - startTime;
       console.log(
@@ -145,6 +147,7 @@ class K8sMetricsCollector {
 
     try {
       // 1. Récupérer les métriques CPU/Mémoire depuis metrics.k8s.io
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let nodeMetricsData: any;
       try {
         nodeMetricsData = await this.metricsClient.listClusterCustomObject({
@@ -165,6 +168,7 @@ class K8sMetricsCollector {
       const nodes = nodesResponse.items;
 
       // 3. Créer une map des métriques CPU/Memory par node
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const metricsMap: Record<string, any> = {};
       if (nodeMetricsData.items) {
         for (const item of nodeMetricsData.items) {
@@ -237,6 +241,7 @@ class K8sMetricsCollector {
           : [this.config.namespace || "default"];
 
       // 1. Récupérer les métriques de pods
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let podMetricsData: any;
       try {
         // Récupérer les métriques pour tous les namespaces
@@ -254,6 +259,7 @@ class K8sMetricsCollector {
       }
 
       // 2. Créer une map des métriques par pod (namespace/name)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const metricsMap: Record<string, any> = {};
       if (podMetricsData.items) {
         for (const item of podMetricsData.items) {

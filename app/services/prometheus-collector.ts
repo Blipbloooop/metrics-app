@@ -42,11 +42,12 @@ async function queryPrometheus(query: string): Promise<PrometheusQueryResult> {
 /**
  * Exécuter une requête PromQL sur une plage de temps
  */
-async function queryPrometheusRange(
+export async function queryPrometheusRange(
   query: string,
   start: Date,
   end: Date,
   step: string = '30s'
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): Promise<any> {
   const url = `${PROMETHEUS_URL}/api/v1/query_range?` + 
     `query=${encodeURIComponent(query)}` +

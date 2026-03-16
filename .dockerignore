@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+.gitignore
+*.md
+.env*
+.vscode
+k8s/
+app/tests/
+jest.config.ts
+postcss.config.mjs
+tailwind.config.ts

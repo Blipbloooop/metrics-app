@@ -28,6 +28,9 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# k8s secrets (ne jamais commit)
+k8s/app-secret.yaml
+
 # vercel
 .vercel
 

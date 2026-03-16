@@ -1,0 +1,28 @@
+# /opt/metrics-app/k8s/grafana-datasource-postgres.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-postgres
+  namespace: monitoring
+  labels:
+    grafana_datasource: "1" # Label requis par le sidecar Grafana pour auto-discovery
+data:
+  postgres-datasource.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: K8s-Metrics-PostgreSQL
+        type: postgres
+        access: proxy
+        url: postgres.default.svc:5432
+        database: k8s_metrics
+        user: metrics_user
+        secureJsonData:
+          password: 'your-db-password'
+        jsonData:
+          sslmode: 'disable'
+          maxOpenConns: 10
+          maxIdleConns: 5
+          connMaxLifetime: 14400
+          postgresVersion: 1500
+          timescaledb: false
+        isDefault: false

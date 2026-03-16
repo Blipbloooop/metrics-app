@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────
+// Nœuds Kubernetes connus du cluster
+// ─────────────────────────────────────────
+model Node {
+  id           String   @id // ex: "k8s-worker-1"
+  ip           String
+  role         String   // "master" | "worker"
+  cpu_cores    Int
+  ram_gb       Int
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  metrics      MetricsRaw[]
+  reservations Reservation[]
+
+  @@map("nodes")
+}
+
+// ─────────────────────────────────────────
+// Métriques brutes collectées toutes les minutes
+// ─────────────────────────────────────────
+model MetricsRaw {
+  id               String   @id @default(cuid())
+  node_id          String
+  collected_at     DateTime
+  cpu_percent      Float    // 0-100
+  ram_percent      Float    // 0-100
+  disk_percent     Float    // 0-100
+  network_rx_mb    Float    // MB/s entrant
+  network_tx_mb    Float    // MB/s sortant
+  created_at       DateTime @default(now())
+
+  node             Node     @relation(fields: [node_id], references: [id])
+
+  @@index([node_id, collected_at])
+  @@map("metrics_raw")
+}
+
+// ─────────────────────────────────────────
+// Métriques agrégées par fenêtre temporelle (PR-20)
+// ─────────────────────────────────────────
+model MetricsAggregated {
+  id              String   @id @default(cuid())
+  node_id         String
+  window          String   // "5min" | "15min" | "1h"
+  window_start    DateTime
+  window_end      DateTime
+  cpu_avg         Float
+  cpu_min         Float
+  cpu_max         Float
+  cpu_p95         Float
+  ram_avg         Float
+  ram_min         Float
+  ram_max         Float
+  ram_p95         Float
+  disk_avg        Float
+  disk_min        Float
+  disk_max        Float
+  network_rx_avg  Float
+  network_tx_avg  Float
+  sample_count    Int
+  created_at      DateTime @default(now())
+
+  @@unique([node_id, window, window_start])
+  @@index([node_id, window_start])
+  @@index([node_id, window])
+  @@map("metrics_aggregated")
+}
+
+// ─────────────────────────────────────────
+// Prédictions générées par Ollama
+// ─────────────────────────────────────────
+model Prediction {
+  id                  String   @id @default(cuid())
+  node_id             String
+  predicted_at        DateTime @default(now())
+  horizon_minutes     Int      // dans combien de minutes la prédiction porte
+  predicted_cpu       Float
+  predicted_ram       Float
+  predicted_disk      Float
+  overload_risk       Float    // 0.0 - 1.0
+  confidence          Float    // 0.0 - 1.0
+  recommendation      String?
+  model_name          String   // "qwen2:0.5b"
+  inference_time_ms   Int
+
+  alerts              Alert[]
+  reservations        Reservation[]
+
+  @@index([node_id, predicted_at])
+  @@map("predictions")
+}
+
+// ─────────────────────────────────────────
+// Réservations de ressources (automatiques ou manuelles)
+// ─────────────────────────────────────────
+model Reservation {
+  id              String   @id @default(cuid())
+  node_id         String
+  prediction_id   String?  // null si réservation manuelle
+  triggered_by    String   // "automatic" | "manual"
+  status          String   // "pending" | "active" | "released" | "failed"
+  cpu_reserved    Float    // cores réservés
+  ram_reserved_gb Float
+  reserved_at     DateTime @default(now())
+  released_at     DateTime?
+  expires_at      DateTime?
+  notes           String?
+
+  node            Node       @relation(fields: [node_id], references: [id])
+  prediction      Prediction? @relation(fields: [prediction_id], references: [id])
+
+  @@index([node_id, status])
+  @@index([status, reserved_at])
+  @@map("reservations")
+}
+
+// ─────────────────────────────────────────
+// Alertes système
+// ─────────────────────────────────────────
+model Alert {
+  id            String   @id @default(cuid())
+  node_id       String?
+  prediction_id String?
+  type          String   // "overload_predicted" | "threshold_exceeded" | "prediction_error"
+  severity      String   // "info" | "warning" | "critical"
+  message       String
+  threshold     Float?   // seuil qui a déclenché l'alerte
+  actual_value  Float?   // valeur réelle au moment de l'alerte
+  acknowledged  Boolean  @default(false)
+  triggered_at  DateTime @default(now())
+  resolved_at   DateTime?
+
+  prediction    Prediction? @relation(fields: [prediction_id], references: [id])
+
+  @@index([node_id, triggered_at])
+  @@index([severity, acknowledged])
+  @@map("alerts")
+}

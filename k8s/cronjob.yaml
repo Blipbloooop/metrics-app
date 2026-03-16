@@ -1,0 +1,36 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: prometheus-metrics-scraper
+  namespace: default
+spec:
+  schedule: "* * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: scraper
+              image: <TON_REGISTRY>/prometheus-scraper:latest
+              env:
+                - name: PROMETHEUS_URL
+                  value: "http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090"
+                - name: INGEST_URL
+                  value: "http://metrics-app.default.svc:3000"
+                - name: METRICS_INGEST_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: metrics-ingest-token
+                      key: token
+              resources:
+                requests:
+                  cpu: "50m"
+                  memory: "64Mi"
+                limits:
+                  cpu: "100m"
+                  memory: "128Mi"

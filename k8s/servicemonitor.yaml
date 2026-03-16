@@ -1,0 +1,16 @@
+# /opt/metrics-app/k8s/servicemonitor.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: metrics-app
+  namespace: default
+  labels:
+    release: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: metrics-app
+  endpoints:
+    - port: http
+      path: /api/health
+      interval: 30s

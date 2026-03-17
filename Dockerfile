@@ -12,8 +12,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Generate Prisma client
-RUN npx prisma generate 2>/dev/null || true
+# Generate Prisma client (DATABASE_URL fictive, nécessaire pour generate uniquement)
+RUN DATABASE_URL="postgresql://dummy:dummy@localhost:5432/dummy" npx prisma generate
 
 RUN npm run build
 

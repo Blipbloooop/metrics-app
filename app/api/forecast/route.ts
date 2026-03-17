@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ForecastRequestSchema } from '@/lib/validators/forecast'
 import { callForecastService } from '@/lib/services/prediction-client'
+import { assessRisk } from '@/lib/services/risk-assessment'
 import prisma from '@/lib/prisma'
 
 export async function POST(req: NextRequest) {
@@ -71,7 +72,10 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // 5. Sauvegarder la prédiction globale en DB (résumé du forecast)
+  // 5. Évaluer le risque de surcharge (PRV-24)
+  const riskAssessment = assessRisk(forecastResult.cpu_peak, forecastResult.ram_peak)
+
+  // 6. Sauvegarder la prédiction globale en DB (résumé du forecast)
   const saved = await prisma.prediction.create({
     data: {
       node_id,
@@ -79,21 +83,16 @@ export async function POST(req: NextRequest) {
       horizon_minutes,
       predicted_cpu: forecastResult.cpu_peak,
       predicted_ram: forecastResult.ram_peak,
-      predicted_disk: 0, // forecast ne prédit pas le disque
-      overload_risk:
-        forecastResult.cpu_peak > 90 || forecastResult.ram_peak > 95
-          ? 1.0
-          : forecastResult.cpu_peak > 80 || forecastResult.ram_peak > 85
-            ? 0.6
-            : 0.2,
+      predicted_disk: 0,
+      overload_risk: riskAssessment.score,
       confidence: rawMetrics.length >= 10 ? 0.8 : 0.5,
-      recommendation: buildRecommendation(forecastResult.cpu_peak, forecastResult.ram_peak),
+      recommendation: riskAssessment.recommendation,
       model_name: forecastResult.model_used,
       inference_time_ms: forecastResult.total_inference_time_ms,
     },
   })
 
-  // 6. Retourner le forecast enrichi
+  // 7. Retourner le forecast enrichi avec risk_assessment
   return NextResponse.json(
     {
       prediction_id: saved.id,
@@ -107,6 +106,7 @@ export async function POST(req: NextRequest) {
         ram_avg: forecastResult.ram_avg,
         ram_peak: forecastResult.ram_peak,
       },
+      risk_assessment: riskAssessment,
       model_used: forecastResult.model_used,
       total_inference_time_ms: forecastResult.total_inference_time_ms,
       history: {
@@ -117,14 +117,4 @@ export async function POST(req: NextRequest) {
     },
     { status: 201 },
   )
-}
-
-function buildRecommendation(cpuPeak: number, ramPeak: number): string {
-  if (cpuPeak > 90 || ramPeak > 95) {
-    return `Surcharge critique prévue (CPU peak: ${cpuPeak}%, RAM peak: ${ramPeak}%). Réservation de ressources recommandée immédiatement.`
-  }
-  if (cpuPeak > 80 || ramPeak > 85) {
-    return `Charge élevée prévue (CPU peak: ${cpuPeak}%, RAM peak: ${ramPeak}%). Surveiller et préparer une réservation préventive.`
-  }
-  return `Charge normale prévue (CPU peak: ${cpuPeak}%, RAM peak: ${ramPeak}%). Aucune action requise.`
 }

@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
       confidence: rawMetrics.length >= 10 ? 0.8 : 0.5,
       recommendation: riskAssessment.recommendation,
       model_name: forecastResult.model_used,
-      inference_time_ms: forecastResult.total_inference_time_ms,
+      inference_time_ms: 0,
     },
   })
 
@@ -111,7 +111,6 @@ export async function POST(req: NextRequest) {
       },
       risk_assessment: riskAssessment,
       model_used: forecastResult.model_used,
-      total_inference_time_ms: forecastResult.total_inference_time_ms,
       history: {
         points_used: rawMetrics.length,
         oldest: rawMetrics[0].collected_at,

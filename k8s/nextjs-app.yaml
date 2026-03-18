@@ -7,7 +7,7 @@ metadata:
   namespace: app-production
 type: Opaque
 stringData:
-  DATABASE_URL: "postgresql://metrics_user:metrics-password@postgres-service.default.svc.cluster.local:5432/k8s_metrics"
+  DATABASE_URL: "postgresql://metrics_user:metrics-password@postgres.default.svc.cluster.local:5432/k8s_metrics"
 
 ---
 # Deployment Next.js

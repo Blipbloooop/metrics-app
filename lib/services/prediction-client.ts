@@ -49,10 +49,9 @@ export async function callPredictionService(
 // ─────────────────────────────────────────
 
 export interface ForecastStep {
-  step: number;
-  timestamp: string;
-  predicted_cpu_percent: number;
-  predicted_ram_percent: number;
+  t: string;
+  cpu_percent: number;
+  ram_percent: number;
 }
 
 export interface ForecastServiceResponse {
@@ -63,7 +62,7 @@ export interface ForecastServiceResponse {
   ram_avg: number;
   ram_peak: number;
   model_used: string;
-  total_inference_time_ms: number;
+  timestamp: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

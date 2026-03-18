@@ -123,11 +123,9 @@ export function buildForecastPayload(input: {
   step_minutes: number
 }) {
   return {
-    metrics: {
-      node: input.node,
-      cpu_history: input.cpu_history,
-      ram_history: input.ram_history,
-    },
+    node: input.node,
+    cpu_history: input.cpu_history,
+    ram_history: input.ram_history,
     horizon_minutes: input.horizon_minutes,
     step_minutes: input.step_minutes,
     prompt_template: FORECAST_PROMPT_TEMPLATE,

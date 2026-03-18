@@ -1,24 +1,17 @@
+import {
+  PredictionServiceResponseSchema,
+  type PredictionServiceResponse,
+} from '@/lib/validators/predict-response'
+import {
+  ForecastServiceResponseSchema,
+  type ForecastServiceResponse,
+} from '@/lib/validators/forecast-response'
+
 const PREDICTION_SERVICE_URL =
   process.env.PREDICTION_SERVICE_URL ??
   "http://prediction-service.ai-module.svc.cluster.local:3001";
 
-export interface PredictionServiceResponse {
-  request_id: string;
-  timestamp: string;
-  prediction: {
-    predicted_cpu_percent: number;
-    predicted_ram_percent: number;
-    predicted_disk_percent: number;
-    overload_risk: number;
-    confidence: number;
-    recommendation: string;
-  };
-  model_info: {
-    model_name: string;
-    inference_time_ms: number;
-    tokens_generated: number;
-  };
-}
+export type { PredictionServiceResponse, ForecastServiceResponse }
 
 export async function callPredictionService(
   payload: object,
@@ -38,7 +31,14 @@ export async function callPredictionService(
       throw new Error(`prediction-service responded with status ${res.status}`);
     }
 
-    return res.json() as Promise<PredictionServiceResponse>;
+    const json = await res.json();
+    const parsed = PredictionServiceResponseSchema.safeParse(json);
+    if (!parsed.success) {
+      throw new Error(
+        `prediction-service /predict: réponse invalide: ${parsed.error.message}`,
+      );
+    }
+    return parsed.data;
   } finally {
     clearTimeout(timeout);
   }
@@ -48,27 +48,9 @@ export async function callPredictionService(
 // Forecast : prédiction itérative multi-pas
 // ─────────────────────────────────────────
 
-export interface ForecastStep {
-  t: string;
-  cpu_percent: number;
-  ram_percent: number;
-}
-
-export interface ForecastServiceResponse {
-  node: string;
-  forecast: ForecastStep[];
-  cpu_avg: number;
-  cpu_peak: number;
-  ram_avg: number;
-  ram_peak: number;
-  model_used: string;
-  timestamp: string;
-}
-
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function callForecastService(payload: Record<string, any>): Promise<ForecastServiceResponse> {
   const controller = new AbortController();
-  // Timeout plus long pour le forecast itératif (60s)
   const timeout = setTimeout(() => controller.abort(), 60_000);
 
   try {
@@ -86,7 +68,14 @@ export async function callForecastService(payload: Record<string, any>): Promise
       );
     }
 
-    return res.json() as Promise<ForecastServiceResponse>;
+    const json = await res.json();
+    const parsed = ForecastServiceResponseSchema.safeParse(json);
+    if (!parsed.success) {
+      throw new Error(
+        `prediction-service /forecast: réponse invalide: ${parsed.error.message}`,
+      );
+    }
+    return parsed.data;
   } finally {
     clearTimeout(timeout);
   }

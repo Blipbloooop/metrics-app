@@ -91,6 +91,8 @@ Predict the next values. Respond ONLY with valid JSON:
 /**
  * Construit le payload complet pour le prediction-service /predict
  */
+const SEND_PROMPT_TEMPLATE = process.env.SEND_PROMPT_TEMPLATE === 'true'
+
 export function buildPredictPayload(input: {
   node_id: string
   current_cpu_percent: number
@@ -102,7 +104,7 @@ export function buildPredictPayload(input: {
 }) {
   return {
     ...input,
-    prompt_template: PREDICT_PROMPT_TEMPLATE,
+    ...(SEND_PROMPT_TEMPLATE && { prompt_template: PREDICT_PROMPT_TEMPLATE }),
     ollama_options: {
       model: ollamaConfig.model,
       temperature: ollamaConfig.temperature,
@@ -128,7 +130,7 @@ export function buildForecastPayload(input: {
     ram_history: input.ram_history,
     horizon_minutes: input.horizon_minutes,
     step_minutes: input.step_minutes,
-    prompt_template: FORECAST_PROMPT_TEMPLATE,
+    ...(SEND_PROMPT_TEMPLATE && { prompt_template: FORECAST_PROMPT_TEMPLATE }),
     ollama_options: {
       model: ollamaConfig.model,
       temperature: ollamaConfig.temperature,

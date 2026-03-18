@@ -91,7 +91,7 @@ Predict the next values. Respond ONLY with valid JSON:
 /**
  * Construit le payload complet pour le prediction-service /predict
  */
-const SEND_PROMPT_TEMPLATE = process.env.SEND_PROMPT_TEMPLATE === 'true'
+const SEND_OLLAMA_CONFIG = process.env.SEND_OLLAMA_CONFIG === 'true'
 
 export function buildPredictPayload(input: {
   node_id: string
@@ -104,13 +104,15 @@ export function buildPredictPayload(input: {
 }) {
   return {
     ...input,
-    ...(SEND_PROMPT_TEMPLATE && { prompt_template: PREDICT_PROMPT_TEMPLATE }),
-    ollama_options: {
-      model: ollamaConfig.model,
-      temperature: ollamaConfig.temperature,
-      num_predict: ollamaConfig.num_predict,
-      stream: ollamaConfig.stream,
-    },
+    ...(SEND_OLLAMA_CONFIG && {
+      prompt_template: PREDICT_PROMPT_TEMPLATE,
+      ollama_options: {
+        model: ollamaConfig.model,
+        temperature: ollamaConfig.temperature,
+        num_predict: ollamaConfig.num_predict,
+        stream: ollamaConfig.stream,
+      },
+    }),
   }
 }
 
@@ -130,12 +132,14 @@ export function buildForecastPayload(input: {
     ram_history: input.ram_history,
     horizon_minutes: input.horizon_minutes,
     step_minutes: input.step_minutes,
-    ...(SEND_PROMPT_TEMPLATE && { prompt_template: FORECAST_PROMPT_TEMPLATE }),
-    ollama_options: {
-      model: ollamaConfig.model,
-      temperature: ollamaConfig.temperature,
-      num_predict: ollamaConfig.num_predict,
-      stream: ollamaConfig.stream,
-    },
+    ...(SEND_OLLAMA_CONFIG && {
+      prompt_template: FORECAST_PROMPT_TEMPLATE,
+      ollama_options: {
+        model: ollamaConfig.model,
+        temperature: ollamaConfig.temperature,
+        num_predict: ollamaConfig.num_predict,
+        stream: ollamaConfig.stream,
+      },
+    }),
   }
 }

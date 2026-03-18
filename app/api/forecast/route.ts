@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ForecastRequestSchema } from '@/lib/validators/forecast'
 import { callForecastService } from '@/lib/services/prediction-client'
+import { buildForecastPayload } from '@/lib/config/ollama'
 import { assessRisk } from '@/lib/services/risk-assessment'
 import prisma from '@/lib/prisma'
 
@@ -54,16 +55,18 @@ export async function POST(req: NextRequest) {
   const cpu_history = rawMetrics.map((m: { cpu_percent: number }) => m.cpu_percent)
   const ram_history = rawMetrics.map((m: { ram_percent: number }) => m.ram_percent)
 
-  // 4. Appel au prediction-service /forecast
+  // 4. Appel au prediction-service /forecast (avec prompt template + options Ollama)
   let forecastResult
   try {
-    forecastResult = await callForecastService({
-      node: node_id,
-      cpu_history,
-      ram_history,
-      horizon_minutes,
-      step_minutes,
-    })
+    forecastResult = await callForecastService(
+      buildForecastPayload({
+        node: node_id,
+        cpu_history,
+        ram_history,
+        horizon_minutes,
+        step_minutes,
+      }),
+    )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json(

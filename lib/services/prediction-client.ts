@@ -66,13 +66,8 @@ export interface ForecastServiceResponse {
   total_inference_time_ms: number;
 }
 
-export async function callForecastService(payload: {
-  node: string;
-  cpu_history: number[];
-  ram_history: number[];
-  horizon_minutes: number;
-  step_minutes: number;
-}): Promise<ForecastServiceResponse> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function callForecastService(payload: Record<string, any>): Promise<ForecastServiceResponse> {
   const controller = new AbortController();
   // Timeout plus long pour le forecast itératif (60s)
   const timeout = setTimeout(() => controller.abort(), 60_000);
@@ -81,15 +76,7 @@ export async function callForecastService(payload: {
     const res = await fetch(`${PREDICTION_SERVICE_URL}/forecast`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        metrics: {
-          node: payload.node,
-          cpu_history: payload.cpu_history,
-          ram_history: payload.ram_history,
-        },
-        horizon_minutes: payload.horizon_minutes,
-        step_minutes: payload.step_minutes,
-      }),
+      body: JSON.stringify(payload),
       signal: controller.signal,
     });
 

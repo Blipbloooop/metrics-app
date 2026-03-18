@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PredictRequestSchema } from '@/lib/validators/predict'
 import { callPredictionService } from '@/lib/services/prediction-client'
+import { buildPredictPayload } from '@/lib/config/ollama'
 import prisma from '@/lib/prisma'
 
 export async function POST(req: NextRequest) {
@@ -58,17 +59,20 @@ export async function POST(req: NextRequest) {
     }),
   ])
 
-  // 4. Appel au prediction-service
+  // 4. Appel au prediction-service (avec prompt template + options Ollama)
   let predictionResult
   try {
-    predictionResult = await callPredictionService({
-      current_cpu_percent: input.current_cpu_percent,
-      current_ram_percent: input.current_ram_percent,
-      current_disk_percent: input.current_disk_percent,
-      trend_direction: input.trend_direction,
-      prediction_horizon_minutes: input.prediction_horizon_minutes,
-      scenario_description: input.scenario_description,
-    })
+    predictionResult = await callPredictionService(
+      buildPredictPayload({
+        node_id: input.node_id,
+        current_cpu_percent: input.current_cpu_percent,
+        current_ram_percent: input.current_ram_percent,
+        current_disk_percent: input.current_disk_percent,
+        trend_direction: input.trend_direction,
+        prediction_horizon_minutes: input.prediction_horizon_minutes,
+        scenario_description: input.scenario_description,
+      }),
+    )
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json(

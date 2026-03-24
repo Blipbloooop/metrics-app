@@ -41,7 +41,8 @@ export async function createResourceQuota(spec: ReservationSpec): Promise<boolea
       },
     }
 
-    await k8sApi.createNamespacedResourceQuota(spec.namespace, quota as any)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ await k8sApi.createNamespacedResourceQuota(spec.namespace, quota as any)
     console.log(`[reserve] ResourceQuota created for ${spec.deployment_name}`)
     return true
   } catch (err) {
@@ -89,7 +90,8 @@ export async function createLimitRange(spec: ReservationSpec): Promise<boolean> 
       },
     }
 
-    await k8sApi.createNamespacedLimitRange(spec.namespace, limitRange as any)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+ await k8sApi.createNamespacedLimitRange(spec.namespace, limitRange as any)
     console.log(`[reserve] LimitRange created for ${spec.deployment_name}`)
     return true
   } catch (err) {

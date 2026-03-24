@@ -4,23 +4,15 @@ import { z } from 'zod'
  * Contrat API standardisé pour POST /api/predict (PRV-27)
  */
 
-// Réponse attendue du prediction-service /predict
+// Réponse attendue du prediction-service /predict (contrat PRV-27)
 export const PredictionServiceResponseSchema = z.object({
-  request_id: z.string(),
+  node: z.string(),
+  predicted_cpu_percent: z.number().min(0).max(100),
+  predicted_ram_percent: z.number().min(0).max(100),
+  overload_risk: z.enum(['low', 'medium', 'high']),
+  recommendation: z.string(),
+  model_used: z.string(),
   timestamp: z.string(),
-  prediction: z.object({
-    predicted_cpu_percent: z.number().min(0).max(100),
-    predicted_ram_percent: z.number().min(0).max(100),
-    predicted_disk_percent: z.number().min(0).max(100),
-    overload_risk: z.number().min(0).max(1),
-    confidence: z.number().min(0).max(1),
-    recommendation: z.string(),
-  }),
-  model_info: z.object({
-    model_name: z.string(),
-    inference_time_ms: z.number(),
-    tokens_generated: z.number(),
-  }),
 })
 
 export type PredictionServiceResponse = z.infer<typeof PredictionServiceResponseSchema>

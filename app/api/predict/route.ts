@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { PredictRequestSchema } from '@/lib/validators/predict'
 import { callPredictionService } from '@/lib/services/prediction-client'
-import { buildPredictPayload } from '@/lib/config/ollama'
 import prisma from '@/lib/prisma'
 
 export async function POST(req: NextRequest) {
@@ -62,27 +61,13 @@ export async function POST(req: NextRequest) {
   // 4. Appel au prediction-service (avec prompt template + options Ollama)
   let predictionResult
   try {
-<<<<<<< HEAD
     predictionResult = await callPredictionService({
       metrics: {
         node: input.node_id,
-        cpu_history: lastMetrics.map(m => m.cpu_percent),
-        ram_history: lastMetrics.map(m => m.ram_percent),
+        cpu_history: lastMetrics.map((m: { cpu_percent: number }) => m.cpu_percent),
+        ram_history: lastMetrics.map((m: { ram_percent: number }) => m.ram_percent),
       },
     })
-=======
-    predictionResult = await callPredictionService(
-      buildPredictPayload({
-        node_id: input.node_id,
-        current_cpu_percent: input.current_cpu_percent,
-        current_ram_percent: input.current_ram_percent,
-        current_disk_percent: input.current_disk_percent,
-        trend_direction: input.trend_direction,
-        prediction_horizon_minutes: input.prediction_horizon_minutes,
-        scenario_description: input.scenario_description,
-      }),
-    )
->>>>>>> 317a9975fad950686f0205acb5e8fdbba70594dc
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'
     return NextResponse.json(
@@ -91,7 +76,8 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  const { prediction, model_info } = predictionResult
+  const OVERLOAD_RISK_MAP: Record<string, number> = { low: 0.2, medium: 0.6, high: 1.0 }
+  const overloadRiskFloat = OVERLOAD_RISK_MAP[predictionResult.overload_risk] ?? 0.2
 
   // 5. Sauvegarder la prédiction en DB
   const saved = await prisma.prediction.create({
@@ -99,14 +85,14 @@ export async function POST(req: NextRequest) {
       node_id: input.node_id,
       predicted_at: new Date(),
       horizon_minutes: input.prediction_horizon_minutes,
-      predicted_cpu: prediction.predicted_cpu_percent,
-      predicted_ram: prediction.predicted_ram_percent,
-      predicted_disk: prediction.predicted_disk_percent,
-      overload_risk: prediction.overload_risk,
-      confidence: prediction.confidence,
-      recommendation: prediction.recommendation,
-      model_name: model_info.model_name,
-      inference_time_ms: model_info.inference_time_ms,
+      predicted_cpu: predictionResult.predicted_cpu_percent,
+      predicted_ram: predictionResult.predicted_ram_percent,
+      predicted_disk: input.current_disk_percent,
+      overload_risk: overloadRiskFloat,
+      confidence: 0.7,
+      recommendation: predictionResult.recommendation,
+      model_name: predictionResult.model_used,
+      inference_time_ms: 0,
     },
   })
 
@@ -124,14 +110,17 @@ export async function POST(req: NextRequest) {
         horizon_minutes: input.prediction_horizon_minutes,
       },
       prediction: {
-        predicted_cpu_percent: prediction.predicted_cpu_percent,
-        predicted_ram_percent: prediction.predicted_ram_percent,
-        predicted_disk_percent: prediction.predicted_disk_percent,
-        overload_risk: prediction.overload_risk,
-        confidence: prediction.confidence,
-        recommendation: prediction.recommendation,
+        predicted_cpu_percent: predictionResult.predicted_cpu_percent,
+        predicted_ram_percent: predictionResult.predicted_ram_percent,
+        predicted_disk_percent: input.current_disk_percent,
+        overload_risk: overloadRiskFloat,
+        confidence: 0.7,
+        recommendation: predictionResult.recommendation,
       },
-      model_info,
+      model_info: {
+        model_name: predictionResult.model_used,
+        inference_time_ms: 0,
+      },
       context: {
         last_metrics: lastMetrics,
         active_reservations: activeReservations,

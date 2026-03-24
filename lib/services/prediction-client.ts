@@ -76,7 +76,6 @@ export async function callForecastService(payload: Record<string, any>): Promise
       );
     }
     return parsed.data;
->>>>>>> 317a9975fad950686f0205acb5e8fdbba70594dc
   } finally {
     clearTimeout(timeout);
   }

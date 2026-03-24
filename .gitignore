@@ -37,3 +37,5 @@ k8s/app-secret.yaml
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+metrics-app
+Jira.csv

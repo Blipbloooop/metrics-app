@@ -1,0 +1,118 @@
+---
+# Secret avec DATABASE_URL construite à partir des credentials postgres
+apiVersion: v1
+kind: Secret
+metadata:
+  name: metrics-app-secrets
+  namespace: app-production
+type: Opaque
+stringData:
+  DATABASE_URL: "postgresql://metrics_user:metrics-password@postgres.default.svc.cluster.local:5432/k8s_metrics"
+
+---
+# Deployment Next.js
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metrics-app
+  namespace: app-production
+  labels:
+    app: metrics-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metrics-app
+  template:
+    metadata:
+      labels:
+        app: metrics-app
+    spec:
+      containers:
+        - name: metrics-app
+          image: metrics-app:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 3000
+              protocol: TCP
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: metrics-app-secrets
+                  key: DATABASE_URL
+            - name: METRICS_INGEST_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: metrics-ingest-token
+                  key: token
+            - name: PREDICTION_SERVICE_URL
+              value: "http://prediction-service.ai-module.svc.cluster.local:3001"
+            - name: PROMETHEUS_URL
+              value: "http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090"
+            - name: NODE_ENV
+              value: "production"
+            - name: NEXT_TELEMETRY_DISABLED
+              value: "1"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      nodeSelector:
+        node-role.kubernetes.io/worker: worker
+
+---
+# Service ClusterIP
+apiVersion: v1
+kind: Service
+metadata:
+  name: metrics-app-service
+  namespace: app-production
+  labels:
+    app: metrics-app
+spec:
+  type: ClusterIP
+  selector:
+    app: metrics-app
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+
+---
+# Ingress pour accès externe
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: metrics-app-ingress
+  namespace: app-production
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: metrics.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: metrics-app-service
+                port:
+                  number: 3000

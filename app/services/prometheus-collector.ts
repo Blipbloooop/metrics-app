@@ -51,7 +51,7 @@ export async function queryPrometheusRange(
 ): Promise<any> {
   const url = `${PROMETHEUS_URL}/api/v1/query_range?` + 
     `query=${encodeURIComponent(query)}` +
-    `&start${start.toISOString}` +
+    `&start=${start.toISOString()}` +
     `&end=${end.toISOString()}` +
     `&step=${step}`;
 

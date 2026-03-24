@@ -62,12 +62,11 @@ export async function POST(req: NextRequest) {
   let predictionResult
   try {
     predictionResult = await callPredictionService({
-      current_cpu_percent: input.current_cpu_percent,
-      current_ram_percent: input.current_ram_percent,
-      current_disk_percent: input.current_disk_percent,
-      trend_direction: input.trend_direction,
-      prediction_horizon_minutes: input.prediction_horizon_minutes,
-      scenario_description: input.scenario_description,
+      metrics: {
+        node: input.node_id,
+        cpu_history: lastMetrics.map(m => m.cpu_percent),
+        ram_history: lastMetrics.map(m => m.ram_percent),
+      },
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unknown error'

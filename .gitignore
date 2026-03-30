@@ -39,3 +39,7 @@ k8s/app-secret.yaml
 next-env.d.ts
 metrics-app
 Jira.csv
+
+# claude
+.claude/
+CLAUDE.md

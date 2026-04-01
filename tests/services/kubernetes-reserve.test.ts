@@ -209,10 +209,12 @@ describe('createResourceQuota', () => {
     mockApi.createNamespacedResourceQuota.mockResolvedValue({})
     await createResourceQuota(spec)
     expect(mockApi.createNamespacedResourceQuota).toHaveBeenCalledWith(
-      'test-ns',
       expect.objectContaining({
-        kind: 'ResourceQuota',
-        metadata: expect.objectContaining({ namespace: 'test-ns' }),
+        namespace: 'test-ns',
+        body: expect.objectContaining({
+          kind: 'ResourceQuota',
+          metadata: expect.objectContaining({ namespace: 'test-ns' }),
+        }),
       }),
     )
   })
@@ -246,8 +248,10 @@ describe('createLimitRange', () => {
     mockApi.createNamespacedLimitRange.mockResolvedValue({})
     await createLimitRange(spec)
     expect(mockApi.createNamespacedLimitRange).toHaveBeenCalledWith(
-      'test-ns',
-      expect.objectContaining({ kind: 'LimitRange' }),
+      expect.objectContaining({
+        namespace: 'test-ns',
+        body: expect.objectContaining({ kind: 'LimitRange' }),
+      }),
     )
   })
 
@@ -279,9 +283,11 @@ describe('scaleDeployment', () => {
 
     await scaleDeployment('test-ns', 'my-app', 5)
     expect(mockApi.patchNamespacedDeployment).toHaveBeenCalledWith(
-      'my-app',
-      'test-ns',
-      expect.objectContaining({ spec: { replicas: 5 } }),
+      expect.objectContaining({
+        name: 'my-app',
+        namespace: 'test-ns',
+        body: expect.objectContaining({ spec: { replicas: 5 } }),
+      }),
     )
   })
 
@@ -330,8 +336,8 @@ describe('deleteReservationResources', () => {
 
     expect(result.quotas_deleted).toBe(1)
     expect(result.limits_deleted).toBe(1)
-    expect(mockApi.deleteNamespacedResourceQuota).toHaveBeenCalledWith('quota-my-app-1000', 'test-ns')
-    expect(mockApi.deleteNamespacedLimitRange).toHaveBeenCalledWith('limits-my-app-1000', 'test-ns')
+    expect(mockApi.deleteNamespacedResourceQuota).toHaveBeenCalledWith({ name: 'quota-my-app-1000', namespace: 'test-ns' })
+    expect(mockApi.deleteNamespacedLimitRange).toHaveBeenCalledWith({ name: 'limits-my-app-1000', namespace: 'test-ns' })
   })
 
   it('ne supprime pas les ressources sans le label managed_by', async () => {

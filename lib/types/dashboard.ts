@@ -16,6 +16,8 @@ export interface NodeCurrentMetrics {
   history: CpuRamDataPoint[]
 }
 
+// ForecastStep et NodeForecast reflètent directement la réponse JSON du prediction-service
+// — les champs snake_case sont intentionnels pour éviter une couche de mapping.
 export interface ForecastStep {
   t: string           // ex: "+5min"
   cpu_percent: number
@@ -31,7 +33,7 @@ export interface NodeForecast {
   ram_peak: number
   riskLevel: 'low' | 'medium' | 'high'
   model_used: string
-  timestamp: string
+  timestamp: string   // ISO string (même sémantique que lastCollectedAt dans NodeCurrentMetrics)
 }
 
 export interface ActiveReservation {

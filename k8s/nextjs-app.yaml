@@ -8,6 +8,9 @@ metadata:
 type: Opaque
 stringData:
   DATABASE_URL: "postgresql://metrics_user:metrics-password@postgres.default.svc.cluster.local:5432/k8s_metrics"
+  JWT_SECRET: "change-me-in-production-use-a-long-random-secret"
+  ADMIN_USERNAME: "admin"
+  ADMIN_PASSWORD: "admin1234"
 
 ---
 # Deployment Next.js
@@ -50,6 +53,21 @@ spec:
               value: "http://prediction-service.ai-module.svc.cluster.local:3001"
             - name: PROMETHEUS_URL
               value: "http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090"
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: metrics-app-secrets
+                  key: JWT_SECRET
+            - name: ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: metrics-app-secrets
+                  key: ADMIN_USERNAME
+            - name: ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: metrics-app-secrets
+                  key: ADMIN_PASSWORD
             - name: NODE_ENV
               value: "production"
             - name: NEXT_TELEMETRY_DISABLED

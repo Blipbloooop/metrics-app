@@ -110,30 +110,30 @@ app.get('/health', (_req, res) => res.json({ status: 'ok', ollama_url: OLLAMA_UR
 // Input: { node_id, current_cpu_percent, current_ram_percent, current_disk_percent, trend_direction, prediction_horizon_minutes }
 // Output: { request_id, timestamp, prediction: {...}, model_info: {...} }
 app.post('/predict', async (req, res) => {
-  const { node_id, current_cpu_percent, current_ram_percent, current_disk_percent } = req.body;
-  if (node_id == null || current_cpu_percent == null || current_ram_percent == null)
-    return res.status(400).json({ error: 'node_id, current_cpu_percent et current_ram_percent requis' });
+  const { metrics } = req.body;
+  if (!metrics || !Array.isArray(metrics.cpu_history) || !Array.isArray(metrics.ram_history))
+    return res.status(400).json({ error: 'metrics.cpu_history et ram_history requis' });
   try {
-    const cpuIn = clamp(current_cpu_percent);
-    const ramIn = clamp(current_ram_percent);
-    const diskIn = clamp(current_disk_percent ?? 0);
-    const prompt = `Node "${node_id}". Current CPU: ${cpuIn}%, RAM: ${ramIn}%, Disk: ${diskIn}%. Predict next values. Reply ONLY with valid JSON: {"cpu_percent":50,"ram_percent":60,"disk_percent":30}`;
+    const node = String(metrics.node ?? 'unknown');
+    const cpuHistory = metrics.cpu_history.map(v => clamp(v));
+    const ramHistory = metrics.ram_history.map(v => clamp(v));
+    const prompt = `Node "${node}". CPU: ${cpuHistory.join(', ')}%. RAM: ${ramHistory.join(', ')}%. Predict next values. Reply ONLY with valid JSON: {"cpu_percent":50,"ram_percent":60}`;
     const raw = await callOllama(prompt);
     const match = raw.match(/\{[\s\S]*?\}/);
-    let cpuP = cpuIn, ramP = ramIn, diskP = diskIn;
+    let cpuP = cpuHistory.length ? clamp(cpuHistory.reduce((a,b) => a+b, 0) / cpuHistory.length) : 0;
+    let ramP = ramHistory.length ? clamp(ramHistory.reduce((a,b) => a+b, 0) / ramHistory.length) : 0;
     if (match) {
       try {
         const p = JSON.parse(match[0]);
-        if (p.cpu_percent  != null) cpuP  = clamp(p.cpu_percent);
-        if (p.ram_percent  != null) ramP  = clamp(p.ram_percent);
-        if (p.disk_percent != null) diskP = clamp(p.disk_percent);
+        if (p.cpu_percent != null) cpuP = clamp(p.cpu_percent);
+        if (p.ram_percent != null) ramP = clamp(p.ram_percent);
       } catch (_) {}
     }
     const { overload_risk, recommendation } = computeRiskEnum(cpuP, ramP);
     return res.json({
-      node: node_id,
-      predicted_cpu_percent:  parseFloat(cpuP.toFixed(1)),
-      predicted_ram_percent:  parseFloat(ramP.toFixed(1)),
+      node,
+      predicted_cpu_percent: parseFloat(cpuP.toFixed(1)),
+      predicted_ram_percent: parseFloat(ramP.toFixed(1)),
       overload_risk,
       recommendation,
       model_used: MODEL,

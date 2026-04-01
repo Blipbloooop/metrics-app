@@ -78,9 +78,9 @@ data:
       'k8s-worker-2': '192.168.10.126:9100'
     };
 
-    function clamp(v) { return Math.min(100, Math.max(0, Number(v) || 0)); }
+    function clamp(v, min = 0, max = 100) { return Math.min(max, Math.max(min, Number(v) || 0)); }
 
-    function computeRisk(cpuP, ramP) {
+    function computeRiskEnum(cpuP, ramP) {
       if (cpuP > 90 || ramP > 95) return { overload_risk: 'high', recommendation: 'Intervention requise immediatement' };
       if (cpuP > 75 || ramP > 85) return { overload_risk: 'medium', recommendation: 'Surveiller la charge' };
       return { overload_risk: 'low', recommendation: 'Nominal' };
@@ -168,11 +168,14 @@ data:
       if (!metrics || !Array.isArray(metrics.cpu_history) || !Array.isArray(metrics.ram_history))
         return res.status(400).json({ error: 'metrics.cpu_history et ram_history requis' });
       try {
-        const prompt = `Node "${metrics.node||'unknown'}". CPU: ${metrics.cpu_history.join(', ')}%. RAM: ${metrics.ram_history.join(', ')}%. Predict next values. Reply ONLY with valid JSON: {"cpu_percent":50,"ram_percent":60}`;
+        const node = String(metrics.node ?? 'unknown');
+        const cpuHistory = metrics.cpu_history.map(v => clamp(v));
+        const ramHistory = metrics.ram_history.map(v => clamp(v));
+        const prompt = `Node "${node}". CPU: ${cpuHistory.join(', ')}%. RAM: ${ramHistory.join(', ')}%. Predict next values. Reply ONLY with valid JSON: {"cpu_percent":50,"ram_percent":60}`;
         const raw = await callOllama(prompt);
         const match = raw.match(/\{[\s\S]*?\}/);
-        let cpuP = metrics.cpu_history.length ? clamp(metrics.cpu_history.reduce((a,b)=>a+b,0)/metrics.cpu_history.length) : 0;
-        let ramP = metrics.ram_history.length ? clamp(metrics.ram_history.reduce((a,b)=>a+b,0)/metrics.ram_history.length) : 0;
+        let cpuP = cpuHistory.length ? clamp(cpuHistory.reduce((a,b) => a+b, 0) / cpuHistory.length) : 0;
+        let ramP = ramHistory.length ? clamp(ramHistory.reduce((a,b) => a+b, 0) / ramHistory.length) : 0;
         if (match) {
           try {
             const p = JSON.parse(match[0]);
@@ -180,9 +183,9 @@ data:
             if (p.ram_percent != null) ramP = clamp(p.ram_percent);
           } catch (_) {}
         }
-        const { overload_risk, recommendation } = computeRisk(cpuP, ramP);
+        const { overload_risk, recommendation } = computeRiskEnum(cpuP, ramP);
         return res.json({
-          node: String(metrics.node ?? 'unknown'),
+          node,
           predicted_cpu_percent: parseFloat(cpuP.toFixed(1)),
           predicted_ram_percent: parseFloat(ramP.toFixed(1)),
           overload_risk,

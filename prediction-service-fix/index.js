@@ -12,9 +12,18 @@ const NODE_INSTANCES = {
   'k8s-worker-2': '192.168.10.126:9100'
 };
 
-function clamp(v) { return Math.min(100, Math.max(0, Number(v) || 0)); }
+function clamp(v, min = 0, max = 100) { return Math.min(max, Math.max(min, Number(v) || 0)); }
 
-function computeRisk(cpuP, ramP) {
+// Calcule le risque comme score 0.0-1.0
+function computeRiskScore(cpuP, ramP) {
+  if (cpuP > 90 || ramP > 95) return { score: 1.0, recommendation: 'Intervention requise immediatement' };
+  if (cpuP > 75 || ramP > 85) return { score: 0.6, recommendation: 'Surveiller la charge' };
+  if (cpuP > 60 || ramP > 75) return { score: 0.3, recommendation: 'Charge moderee' };
+  return { score: 0.1, recommendation: 'Nominal' };
+}
+
+// Calcule le risque comme enum string low/medium/high
+function computeRiskEnum(cpuP, ramP) {
   if (cpuP > 90 || ramP > 95) return { overload_risk: 'high', recommendation: 'Intervention requise immediatement' };
   if (cpuP > 75 || ramP > 85) return { overload_risk: 'medium', recommendation: 'Surveiller la charge' };
   return { overload_risk: 'low', recommendation: 'Nominal' };
@@ -57,7 +66,6 @@ async function getNodeMetrics(node, historyMinutes, stepMinutes) {
   return { cpuHistory, ramHistory };
 }
 
-// Prédit UN seul pas suivant — le LLM donne uniquement les nombres
 function buildStepPrompt(node, cpuHistory, ramHistory, stepMinutes) {
   const cpuStr = cpuHistory.map((v,i) => `t-${(cpuHistory.length-i)*stepMinutes}min: ${v}%`).join(', ');
   const ramStr = ramHistory.map((v,i) => `t-${(ramHistory.length-i)*stepMinutes}min: ${v}%`).join(', ');
@@ -77,10 +85,10 @@ async function generateForecast(node, cpuHistory, ramHistory, horizonMinutes, st
       const match = raw.match(/\{[\s\S]*?\}/);
       if (match) {
         const p = JSON.parse(match[0]);
-        cpuVal = clamp(p.cpu_percent ?? cpuVal);
-        ramVal = clamp(p.ram_percent ?? ramVal);
+        if (p.cpu_percent != null) cpuVal = clamp(p.cpu_percent);
+        if (p.ram_percent != null) ramVal = clamp(p.ram_percent);
       }
-    } catch (_) { /* keep last known value as fallback */ }
+    } catch (_) {}
     forecast.push({ t: `+${i * stepMinutes}min`, cpu_percent: parseFloat(cpuVal.toFixed(1)), ram_percent: parseFloat(ramVal.toFixed(1)) });
     cpu = [...cpu.slice(1), cpuVal];
     ram = [...ram.slice(1), ramVal];
@@ -98,29 +106,34 @@ async function generateForecast(node, cpuHistory, ramHistory, horizonMinutes, st
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', ollama_url: OLLAMA_URL, prometheus_url: PROMETHEUS_URL, model: MODEL }));
 
+// POST /predict — format attendu par le Next.js compilé (PRV-3)
+// Input: { node_id, current_cpu_percent, current_ram_percent, current_disk_percent, trend_direction, prediction_horizon_minutes }
+// Output: { request_id, timestamp, prediction: {...}, model_info: {...} }
 app.post('/predict', async (req, res) => {
-  const { metrics } = req.body;
-  if (!metrics || !Array.isArray(metrics.cpu_history) || !Array.isArray(metrics.ram_history))
-    return res.status(400).json({ error: 'metrics.cpu_history et ram_history requis' });
+  const { node_id, current_cpu_percent, current_ram_percent, current_disk_percent } = req.body;
+  if (node_id == null || current_cpu_percent == null || current_ram_percent == null)
+    return res.status(400).json({ error: 'node_id, current_cpu_percent et current_ram_percent requis' });
   try {
-    const prompt = `Node "${metrics.node||'unknown'}". CPU: ${metrics.cpu_history.join(', ')}%. RAM: ${metrics.ram_history.join(', ')}%. Predict next values. Reply ONLY with valid JSON: {"cpu_percent":50,"ram_percent":60}`;
+    const cpuIn = clamp(current_cpu_percent);
+    const ramIn = clamp(current_ram_percent);
+    const diskIn = clamp(current_disk_percent ?? 0);
+    const prompt = `Node "${node_id}". Current CPU: ${cpuIn}%, RAM: ${ramIn}%, Disk: ${diskIn}%. Predict next values. Reply ONLY with valid JSON: {"cpu_percent":50,"ram_percent":60,"disk_percent":30}`;
     const raw = await callOllama(prompt);
     const match = raw.match(/\{[\s\S]*?\}/);
-    // Parse LLM response — fallback to history average if invalid
-    let cpuP = metrics.cpu_history.length ? clamp(metrics.cpu_history.reduce((a,b)=>a+b,0)/metrics.cpu_history.length) : 0;
-    let ramP = metrics.ram_history.length ? clamp(metrics.ram_history.reduce((a,b)=>a+b,0)/metrics.ram_history.length) : 0;
+    let cpuP = cpuIn, ramP = ramIn, diskP = diskIn;
     if (match) {
       try {
         const p = JSON.parse(match[0]);
-        if (p.cpu_percent != null) cpuP = clamp(p.cpu_percent);
-        if (p.ram_percent != null) ramP = clamp(p.ram_percent);
-      } catch (_) { /* keep history average */ }
+        if (p.cpu_percent  != null) cpuP  = clamp(p.cpu_percent);
+        if (p.ram_percent  != null) ramP  = clamp(p.ram_percent);
+        if (p.disk_percent != null) diskP = clamp(p.disk_percent);
+      } catch (_) {}
     }
-    const { overload_risk, recommendation } = computeRisk(cpuP, ramP);
+    const { overload_risk, recommendation } = computeRiskEnum(cpuP, ramP);
     return res.json({
-      node: String(metrics.node ?? 'unknown'),
-      predicted_cpu_percent: parseFloat(cpuP.toFixed(1)),
-      predicted_ram_percent: parseFloat(ramP.toFixed(1)),
+      node: node_id,
+      predicted_cpu_percent:  parseFloat(cpuP.toFixed(1)),
+      predicted_ram_percent:  parseFloat(ramP.toFixed(1)),
       overload_risk,
       recommendation,
       model_used: MODEL,
@@ -129,6 +142,9 @@ app.post('/predict', async (req, res) => {
   } catch(err) { console.error('[/predict]', err.message); return res.status(500).json({ error: err.message }); }
 });
 
+// POST /forecast — format attendu par ForecastServiceResponseSchema
+// Input: { node, horizon_minutes, step_minutes }
+// Output: { node, forecast[], cpu_avg, cpu_peak, ram_avg, ram_peak, model_used, timestamp }
 app.post('/forecast', async (req, res) => {
   const { node = 'k8s-worker-1', horizon_minutes = 30, step_minutes = 5 } = req.body;
   try {

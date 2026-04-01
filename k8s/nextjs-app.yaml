@@ -92,7 +92,7 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
       nodeSelector:
-        node-role.kubernetes.io/worker: worker
+        kubernetes.io/hostname: k8s-worker-1
 
 ---
 # Service ClusterIP

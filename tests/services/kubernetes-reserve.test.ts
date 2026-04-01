@@ -18,6 +18,10 @@ jest.mock('@kubernetes/client-node', () => {
     readNode: jest.fn(),
     createNamespacedResourceQuota: jest.fn(),
     createNamespacedLimitRange: jest.fn(),
+    listNamespacedResourceQuota: jest.fn(),
+    deleteNamespacedResourceQuota: jest.fn(),
+    listNamespacedLimitRange: jest.fn(),
+    deleteNamespacedLimitRange: jest.fn(),
     readNamespacedDeployment: jest.fn(),
     patchNamespacedDeployment: jest.fn(),
   }
@@ -40,6 +44,7 @@ import {
   createResourceQuota,
   createLimitRange,
   scaleDeployment,
+  deleteReservationResources,
 } from '@/app/services/kubernetes-reserve'
 
 // Récupérer le _mockApi exposé par la factory
@@ -48,6 +53,10 @@ const { _mockApi: mockApi } = jest.requireMock('@kubernetes/client-node') as {
     readNode: jest.Mock
     createNamespacedResourceQuota: jest.Mock
     createNamespacedLimitRange: jest.Mock
+    listNamespacedResourceQuota: jest.Mock
+    deleteNamespacedResourceQuota: jest.Mock
+    listNamespacedLimitRange: jest.Mock
+    deleteNamespacedLimitRange: jest.Mock
     readNamespacedDeployment: jest.Mock
     patchNamespacedDeployment: jest.Mock
   }
@@ -58,6 +67,10 @@ beforeEach(() => {
   mockApi.readNode.mockReset()
   mockApi.createNamespacedResourceQuota.mockReset()
   mockApi.createNamespacedLimitRange.mockReset()
+  mockApi.listNamespacedResourceQuota.mockReset()
+  mockApi.deleteNamespacedResourceQuota.mockReset()
+  mockApi.listNamespacedLimitRange.mockReset()
+  mockApi.deleteNamespacedLimitRange.mockReset()
   mockApi.readNamespacedDeployment.mockReset()
   mockApi.patchNamespacedDeployment.mockReset()
 })
@@ -292,5 +305,56 @@ describe('scaleDeployment', () => {
     mockApi.patchNamespacedDeployment.mockRejectedValue(new Error('Conflict'))
     const result = await scaleDeployment('test-ns', 'my-app', 3)
     expect(result).toBe(false)
+  })
+})
+
+// ─── deleteReservationResources ───────────────────────────────────────────────
+
+describe('deleteReservationResources', () => {
+  it('supprime les ResourceQuotas et LimitRanges correspondant au deployment', async () => {
+    mockApi.listNamespacedResourceQuota.mockResolvedValue({
+      items: [
+        { metadata: { name: 'quota-my-app-1000', labels: { managed_by: 'reserve-endpoint' } } },
+        { metadata: { name: 'quota-other-app-2000', labels: { managed_by: 'reserve-endpoint' } } },
+      ],
+    })
+    mockApi.listNamespacedLimitRange.mockResolvedValue({
+      items: [
+        { metadata: { name: 'limits-my-app-1000', labels: { managed_by: 'reserve-endpoint' } } },
+      ],
+    })
+    mockApi.deleteNamespacedResourceQuota.mockResolvedValue({})
+    mockApi.deleteNamespacedLimitRange.mockResolvedValue({})
+
+    const result = await deleteReservationResources('test-ns', 'my-app')
+
+    expect(result.quotas_deleted).toBe(1)
+    expect(result.limits_deleted).toBe(1)
+    expect(mockApi.deleteNamespacedResourceQuota).toHaveBeenCalledWith('quota-my-app-1000', 'test-ns')
+    expect(mockApi.deleteNamespacedLimitRange).toHaveBeenCalledWith('limits-my-app-1000', 'test-ns')
+  })
+
+  it('ne supprime pas les ressources sans le label managed_by', async () => {
+    mockApi.listNamespacedResourceQuota.mockResolvedValue({
+      items: [
+        { metadata: { name: 'quota-my-app-1000', labels: {} } },
+      ],
+    })
+    mockApi.listNamespacedLimitRange.mockResolvedValue({ items: [] })
+
+    const result = await deleteReservationResources('test-ns', 'my-app')
+
+    expect(result.quotas_deleted).toBe(0)
+    expect(mockApi.deleteNamespacedResourceQuota).not.toHaveBeenCalled()
+  })
+
+  it('retourne 0/0 sans throw si list lève une exception', async () => {
+    mockApi.listNamespacedResourceQuota.mockRejectedValue(new Error('Forbidden'))
+    mockApi.listNamespacedLimitRange.mockRejectedValue(new Error('Forbidden'))
+
+    const result = await deleteReservationResources('test-ns', 'my-app')
+
+    expect(result.quotas_deleted).toBe(0)
+    expect(result.limits_deleted).toBe(0)
   })
 })

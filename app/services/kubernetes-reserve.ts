@@ -124,6 +124,42 @@ export async function scaleDeployment(
   }
 }
 
+export async function deleteReservationResources(
+  namespace: string,
+  deploymentName: string,
+): Promise<{ quotas_deleted: number; limits_deleted: number }> {
+  let quotas_deleted = 0
+  let limits_deleted = 0
+
+  try {
+    const quotas = await k8sApi.listNamespacedResourceQuota(namespace)
+    for (const q of quotas.items) {
+      if (q.metadata?.labels?.['managed_by'] === 'reserve-endpoint' &&
+          q.metadata?.name?.startsWith(`quota-${deploymentName}-`)) {
+        await k8sApi.deleteNamespacedResourceQuota(q.metadata.name, namespace)
+        quotas_deleted++
+      }
+    }
+  } catch (err) {
+    console.error(`[release] Failed to delete ResourceQuotas: ${err instanceof Error ? err.message : err}`)
+  }
+
+  try {
+    const limits = await k8sApi.listNamespacedLimitRange(namespace)
+    for (const l of limits.items) {
+      if (l.metadata?.labels?.['managed_by'] === 'reserve-endpoint' &&
+          l.metadata?.name?.startsWith(`limits-${deploymentName}-`)) {
+        await k8sApi.deleteNamespacedLimitRange(l.metadata.name, namespace)
+        limits_deleted++
+      }
+    }
+  } catch (err) {
+    console.error(`[release] Failed to delete LimitRanges: ${err instanceof Error ? err.message : err}`)
+  }
+
+  return { quotas_deleted, limits_deleted }
+}
+
 export async function checkNodeCapacity(
   node_id: string,
   cpu_needed: number,

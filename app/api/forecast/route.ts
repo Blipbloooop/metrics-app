@@ -95,6 +95,30 @@ export async function POST(req: NextRequest) {
     },
   })
 
+  // 6b. Créer une alerte si les seuils CPU/RAM sont dépassés (PRV-56)
+  const CPU_WARNING = parseFloat(process.env.ALERT_CPU_WARNING ?? '70')
+  const CPU_CRITICAL = parseFloat(process.env.ALERT_CPU_CRITICAL ?? '90')
+  const RAM_WARNING = parseFloat(process.env.ALERT_RAM_WARNING ?? '75')
+  const RAM_CRITICAL = parseFloat(process.env.ALERT_RAM_CRITICAL ?? '90')
+
+  const cpuPeak = forecastResult.cpu_peak
+  const ramPeak = forecastResult.ram_peak
+
+  if (cpuPeak >= CPU_WARNING || ramPeak >= RAM_WARNING) {
+    const severity = (cpuPeak >= CPU_CRITICAL || ramPeak >= RAM_CRITICAL) ? 'critical' : 'warning'
+    await prisma.alert.create({
+      data: {
+        node_id,
+        prediction_id: saved.id,
+        type: 'overload_predicted',
+        severity,
+        message: `Surcharge prédite sur ${node_id} : CPU ${cpuPeak.toFixed(1)}% / RAM ${ramPeak.toFixed(1)}%`,
+        threshold: severity === 'critical' ? Math.max(CPU_CRITICAL, RAM_CRITICAL) : Math.max(CPU_WARNING, RAM_WARNING),
+        actual_value: Math.max(cpuPeak, ramPeak),
+      },
+    })
+  }
+
   // 7. Retourner le forecast enrichi avec risk_assessment
   return NextResponse.json(
     {

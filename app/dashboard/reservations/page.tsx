@@ -3,7 +3,7 @@ import ReservationCard from '@/components/ui/ReservationCard'
 import Header from '@/components/layout/Header'
 import ReservationForm from './ReservationForm'
 
-export const revalidate = 30
+export const dynamic = 'force-dynamic'
 
 export default async function ReservationsPage() {
   const reservations = await getActiveReservations()

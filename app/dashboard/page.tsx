@@ -2,7 +2,7 @@ import { getAllCurrentMetrics } from '@/lib/dashboard-data'
 import NodeCard from '@/components/ui/NodeCard'
 import Header from '@/components/layout/Header'
 
-export const revalidate = 30
+export const dynamic = 'force-dynamic'
 
 export default async function DashboardPage() {
   const metrics = await getAllCurrentMetrics()

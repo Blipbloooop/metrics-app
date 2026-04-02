@@ -119,8 +119,6 @@ kind: Ingress
 metadata:
   name: metrics-app-ingress
   namespace: app-production
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   rules:

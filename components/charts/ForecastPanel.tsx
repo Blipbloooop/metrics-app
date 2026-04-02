@@ -16,20 +16,19 @@ export default function ForecastPanel() {
   useEffect(() => {
     async function fetchForecasts() {
       try {
-        const results = await Promise.all(
-          NODES.map(async (nodeId) => {
-            const res = await fetch('/api/forecast', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ node_id: nodeId, horizon_minutes: 30, step_minutes: 5 }),
-            })
-            if (!res.ok) throw new Error(`Forecast échoué pour ${nodeId}: ${res.status}`)
-            const data = await res.json()
-            const riskLevel: 'low' | 'medium' | 'high' =
-              data.cpu_peak >= 90 ? 'high' : data.cpu_peak >= 70 ? 'medium' : 'low'
-            return { nodeId, ...data, riskLevel } as NodeForecast
+        const results: NodeForecast[] = []
+        for (const nodeId of NODES) {
+          const res = await fetch('/api/forecast', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ node_id: nodeId, horizon_minutes: 30, step_minutes: 5 }),
           })
-        )
+          if (!res.ok) throw new Error(`Forecast échoué pour ${nodeId}: ${res.status}`)
+          const data = await res.json()
+          const riskLevel: 'low' | 'medium' | 'high' =
+            data.cpu_peak >= 90 ? 'high' : data.cpu_peak >= 70 ? 'medium' : 'low'
+          results.push({ nodeId, ...data, riskLevel } as NodeForecast)
+        }
         setForecasts(results)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Erreur inconnue')

@@ -1,4 +1,44 @@
 ---
+# ServiceAccount pour l'accès à l'API Kubernetes
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: metrics-app-sa
+  namespace: app-production
+
+---
+# ClusterRole avec permissions pour /api/reserve
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: metrics-app-role
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["resourcequotas", "limitranges"]
+    verbs: ["get", "list", "create", "delete"]
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "patch"]
+
+---
+# ClusterRoleBinding pour lier le ClusterRole au ServiceAccount
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: metrics-app-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: metrics-app-role
+subjects:
+  - kind: ServiceAccount
+    name: metrics-app-sa
+    namespace: app-production
+
+---
 # Secret avec DATABASE_URL construite à partir des credentials postgres
 apiVersion: v1
 kind: Secret
@@ -31,6 +71,7 @@ spec:
       labels:
         app: metrics-app
     spec:
+      serviceAccountName: metrics-app-sa
       containers:
         - name: metrics-app
           image: metrics-app:latest

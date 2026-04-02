@@ -2,7 +2,7 @@ apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: prometheus-metrics-scraper
-  namespace: default
+  namespace: app-production
 spec:
   schedule: "* * * * *"
   concurrencyPolicy: Forbid
@@ -14,14 +14,17 @@ spec:
       template:
         spec:
           restartPolicy: Never
+          nodeSelector:
+            kubernetes.io/hostname: k8s-worker-1
           containers:
             - name: scraper
-              image: <TON_REGISTRY>/prometheus-scraper:latest
+              image: metrics-scraper:latest
+              imagePullPolicy: Never
               env:
                 - name: PROMETHEUS_URL
-                  value: "http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090"
+                  value: "http://monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090"
                 - name: INGEST_URL
-                  value: "http://metrics-app.default.svc:3000"
+                  value: "http://metrics-app-service.app-production.svc.cluster.local:3000"
                 - name: METRICS_INGEST_TOKEN
                   valueFrom:
                     secretKeyRef:

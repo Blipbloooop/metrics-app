@@ -25,9 +25,20 @@ export default function ForecastPanel() {
           })
           if (!res.ok) throw new Error(`Forecast échoué pour ${nodeId}: ${res.status}`)
           const data = await res.json()
+          const cpuPeak = data.summary?.cpu_peak ?? data.cpu_peak ?? 0
           const riskLevel: 'low' | 'medium' | 'high' =
-            data.cpu_peak >= 90 ? 'high' : data.cpu_peak >= 70 ? 'medium' : 'low'
-          results.push({ nodeId, ...data, riskLevel } as NodeForecast)
+            cpuPeak >= 90 ? 'high' : cpuPeak >= 70 ? 'medium' : 'low'
+          results.push({
+            nodeId,
+            forecast: data.forecast ?? [],
+            cpu_avg: data.summary?.cpu_avg ?? 0,
+            cpu_peak: cpuPeak,
+            ram_avg: data.summary?.ram_avg ?? 0,
+            ram_peak: data.summary?.ram_peak ?? 0,
+            model_used: data.model_used ?? 'unknown',
+            timestamp: data.predicted_at ?? new Date().toISOString(),
+            riskLevel,
+          } as NodeForecast)
         }
         setForecasts(results)
       } catch (e) {

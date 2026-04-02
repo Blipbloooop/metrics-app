@@ -10,7 +10,7 @@ function subMinutes(date: Date, minutes: number): Date {
 }
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
+  return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })
 }
 
 export async function getCurrentMetrics(nodeId: string): Promise<NodeCurrentMetrics> {

@@ -3,7 +3,7 @@ import type { NodeCurrentMetrics, ActiveReservation } from '@/lib/types/dashboar
 
 const NODES = ['k8s-master', 'k8s-worker-1', 'k8s-worker-2'] as const
 const OFFLINE_THRESHOLD_MS = 2 * 60 * 1000
-const HISTORY_WINDOW_MIN = 30
+const HISTORY_WINDOW_MIN = 360 // 6h d'historique
 
 function subMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() - minutes * 60 * 1000)

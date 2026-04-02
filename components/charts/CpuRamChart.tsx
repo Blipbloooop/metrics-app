@@ -29,7 +29,7 @@ export default function CpuRamChart({ data, nodeName }: CpuRamChartProps) {
         <Tooltip
           contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: 6 }}
           labelStyle={{ color: '#F3F4F6' }}
-          formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
+          formatter={(value) => [`${Number(value).toFixed(1)}%`]}
         />
         <Legend wrapperStyle={{ color: '#9CA3AF', fontSize: 12 }} />
         <Line

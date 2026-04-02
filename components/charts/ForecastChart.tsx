@@ -18,6 +18,8 @@ const RISK_COLOR: Record<string, string> = {
   high:   '#F87171',
 }
 
+// cpuPeak est disponible pour une future logique de seuil personnalisé
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function ForecastChart({ forecast, riskLevel, cpuPeak }: ForecastChartProps) {
   if (forecast.length === 0) {
     return (
@@ -47,7 +49,7 @@ export default function ForecastChart({ forecast, riskLevel, cpuPeak }: Forecast
         <YAxis domain={[0, 100]} tick={{ fill: '#9CA3AF', fontSize: 11 }} unit="%" />
         <Tooltip
           contentStyle={{ backgroundColor: '#1F2937', border: '1px solid #374151', borderRadius: 6 }}
-          formatter={(value: number, name: string) => [`${value.toFixed(1)}%`, name]}
+          formatter={(value) => [`${Number(value).toFixed(1)}%`]}
         />
         <Legend wrapperStyle={{ color: '#9CA3AF', fontSize: 12 }} />
         <ReferenceLine y={90} stroke="#F87171" strokeDasharray="4 4" label={{ value: 'Critique 90%', fill: '#F87171', fontSize: 10 }} />

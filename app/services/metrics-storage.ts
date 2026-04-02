@@ -19,7 +19,7 @@ export async function storeRawMetrics(input: RawMetricsInput): Promise<void> {
   const { timestamp, nodes } = input;
 
   try {
-    await prisma.$transaction(async (tx) => {
+    await prisma.$transaction(async (tx: typeof prisma) => {
       for (const nodeMetric of nodes) {
         const capacity = nodeMetric.capacity;
         const cpuPercent = capacity

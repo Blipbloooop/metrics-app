@@ -3,7 +3,6 @@ import type { NodeCurrentMetrics, ActiveReservation } from '@/lib/types/dashboar
 
 const NODES = ['k8s-master', 'k8s-worker-1', 'k8s-worker-2'] as const
 const OFFLINE_THRESHOLD_MS = 2 * 60 * 1000
-const HISTORY_WINDOW_MIN = 360 // 6h d'historique
 
 function subMinutes(date: Date, minutes: number): Date {
   return new Date(date.getTime() - minutes * 60 * 1000)
@@ -13,8 +12,8 @@ function formatTime(date: Date): string {
   return date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' })
 }
 
-export async function getCurrentMetrics(nodeId: string): Promise<NodeCurrentMetrics> {
-  const since = subMinutes(new Date(), HISTORY_WINDOW_MIN)
+export async function getCurrentMetrics(nodeId: string, windowMinutes = 360): Promise<NodeCurrentMetrics> {
+  const since = subMinutes(new Date(), windowMinutes)
 
   const rows = await prisma.metricsRaw.findMany({
     where: { node_id: nodeId, collected_at: { gte: since } },
@@ -45,8 +44,8 @@ export async function getCurrentMetrics(nodeId: string): Promise<NodeCurrentMetr
   }
 }
 
-export async function getAllCurrentMetrics(): Promise<NodeCurrentMetrics[]> {
-  return Promise.all(NODES.map(getCurrentMetrics))
+export async function getAllCurrentMetrics(windowMinutes = 360): Promise<NodeCurrentMetrics[]> {
+  return Promise.all(NODES.map(nodeId => getCurrentMetrics(nodeId, windowMinutes)))
 }
 
 export async function getActiveReservations(): Promise<ActiveReservation[]> {

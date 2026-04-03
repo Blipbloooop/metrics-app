@@ -8,6 +8,7 @@ import {
   getNodeCpuUsage,
   getNodeMemoryUsage,
   getNodeDiskIO,
+  getNodeDiskUsage,
   getNodeNetworkIO,
 } from '../app/services/prometheus-collector'
 
@@ -75,10 +76,11 @@ async function main() {
   }
 
   // Collecter toutes les métriques en parallèle
-  const [cpuByNode, memByNode, diskByNode, netByNode] = await Promise.all([
+  const [cpuByNode, memByNode, diskByNode, diskUsageByNode, netByNode] = await Promise.all([
     getNodeCpuUsage(),
     getNodeMemoryUsage(),
     getNodeDiskIO(),
+    getNodeDiskUsage(),
     getNodeNetworkIO(),
   ])
 
@@ -109,9 +111,7 @@ async function main() {
     const cpu_percent  = clamp(round2((cpuCores / capacity.cpuCores) * 100))
     const ram_percent  = clamp(round2((ramMb / (capacity.ramGb * 1024)) * 100))
 
-    // disk_percent : prometheus-collector ne le collecte pas encore
-    // On met 0 en attendant PR-20 qui ajoutera getNodeDiskUsage()
-    const disk_percent = 0
+    const disk_percent = clamp(round2(diskUsageByNode[instance] ?? 0))
 
     const network_rx_mb = round2(net?.inMb ?? 0)
     const network_tx_mb = round2(net?.outMb ?? 0)

@@ -106,6 +106,22 @@ export async function getNodeMemoryUsage(): Promise<Record<string, number>> {
 }
 
 /**
+ * Occupation disque par nœud : pourcentage utilisé sur la partition racine
+ */
+export async function getNodeDiskUsage(): Promise<Record<string, number>> {
+  const result = await queryPrometheus(
+    '(1 - node_filesystem_avail_bytes{mountpoint="/",fstype!="tmpfs"} / node_filesystem_size_bytes{mountpoint="/",fstype!="tmpfs"}) * 100'
+  )
+
+  const diskByNode: Record<string, number> = {}
+  for (const item of result.data.result) {
+    const instance = item.metric.instance || 'unknown'
+    diskByNode[instance] = parseFloat(item.value[1])
+  }
+  return diskByNode
+}
+
+/**
  * I/O disque par nœud : lecture et écriture en MB/s
  */
 export async function getNodeDiskIO(): Promise<Record<string, { readMb: number; writeMb: number }>> {

@@ -4,6 +4,7 @@ export interface CpuRamDataPoint {
   timestamp: string   // format "HH:mm" pour l'affichage
   cpu: number         // 0-100
   ram: number         // 0-100
+  disk: number        // 0-100
 }
 
 export interface NodeCurrentMetrics {

@@ -31,6 +31,7 @@ export async function getCurrentMetrics(nodeId: string, windowMinutes = 360): Pr
     timestamp: formatTime(r.collected_at),
     cpu: r.cpu_percent,
     ram: r.ram_percent,
+    disk: r.disk_percent,
   }))
 
   return {

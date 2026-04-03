@@ -40,6 +40,10 @@ export default function CpuRamChart({ data, nodeName }: CpuRamChartProps) {
           type="monotone" dataKey="ram" name="RAM"
           stroke="#A78BFA" strokeWidth={2} dot={false} activeDot={{ r: 4 }}
         />
+        <Line
+          type="monotone" dataKey="disk" name="Disque"
+          stroke="#34D399" strokeWidth={2} dot={false} activeDot={{ r: 4 }}
+        />
       </LineChart>
     </ResponsiveContainer>
   )

@@ -38,10 +38,30 @@ export async function POST(req: NextRequest) {
   const totalRamNeeded = input.ram_per_replica * input.replica_count
 
   const capacityCheck = await checkNodeCapacity(input.node_id, totalCpuNeeded, totalRamNeeded)
+
+  // Capacité insuffisante → mise en file d'attente (PRV-43)
   if (!capacityCheck.available) {
+    const queued = await prisma.reservation.create({
+      data: {
+        node_id: input.node_id,
+        triggered_by: 'manual',
+        status: 'queued',
+        cpu_reserved: totalCpuNeeded,
+        ram_reserved_gb: totalRamNeeded,
+        namespace: input.namespace,
+        deployment_name: input.deployment_name,
+        expires_at: new Date(Date.now() + input.duration_minutes * 60 * 1000),
+        notes: input.reason ?? null,
+      },
+    })
     return NextResponse.json(
-      { error: 'Insufficient node capacity', detail: capacityCheck.reason },
-      { status: 409 }
+      {
+        reservation_id: queued.id,
+        status: 'queued',
+        message: 'Capacité insuffisante — réservation mise en file d\'attente',
+        detail: capacityCheck.reason,
+      },
+      { status: 202 }
     )
   }
 

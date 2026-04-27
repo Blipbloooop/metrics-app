@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   const now = new Date()
   const since5min = new Date(now.getTime() - 5 * 60 * 1000)
 
-  const [active, expiredSoon, recentlyReleased] = await Promise.all([
+  const [active, expiredSoon, recentlyReleased, queued] = await Promise.all([
     prisma.reservation.findMany({
       where: { status: 'active' },
       select: {
@@ -46,6 +46,12 @@ export async function GET(req: NextRequest) {
       select: { id: true, node_id: true, released_at: true, release_reason: true },
       orderBy: { released_at: 'desc' },
     }),
+    // File d'attente
+    prisma.reservation.findMany({
+      where: { status: 'queued' },
+      select: { id: true, node_id: true, triggered_by: true, cpu_reserved: true, ram_reserved_gb: true, reserved_at: true, expires_at: true },
+      orderBy: [{ triggered_by: 'desc' }, { reserved_at: 'asc' }],
+    }),
   ])
 
   const now_ts = now.getTime()
@@ -58,7 +64,17 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     active_count: active.length,
+    queued_count: queued.length,
     active: activeWithTTL,
+    queued: queued.map((r) => ({
+      id: r.id,
+      node_id: r.node_id,
+      triggered_by: r.triggered_by,
+      cpu_reserved: r.cpu_reserved,
+      ram_reserved_gb: r.ram_reserved_gb,
+      reserved_at: r.reserved_at.toISOString(),
+      expires_at: r.expires_at?.toISOString() ?? null,
+    })),
     expiring_soon: expiredSoon.map((r) => ({
       id: r.id,
       node_id: r.node_id,

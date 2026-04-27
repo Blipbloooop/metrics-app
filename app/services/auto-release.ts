@@ -173,11 +173,92 @@ export async function releaseOnJobCompletion(): Promise<ReleaseResult[]> {
   return results
 }
 
+// ─── Réallocation des ressources libérées (PRV-43) ───────────────────────────
+// Après chaque cycle de release, tente d'activer les réservations en attente.
+// Ordre : manuelles en priorité (triggered_by='manual'), puis FIFO par reserved_at.
+export interface ReallocationResult {
+  reservation_id: string
+  node_id: string
+  success: boolean
+  error?: string
+}
+
+export async function reallocateQueued(): Promise<ReallocationResult[]> {
+  const queued = await prisma.reservation.findMany({
+    where: { status: 'queued' },
+    orderBy: [
+      { triggered_by: 'desc' }, // 'manual' > 'automatic' alphabétiquement
+      { reserved_at: 'asc' },   // FIFO
+    ],
+  })
+
+  if (queued.length === 0) return []
+  console.log(`[auto-release] Reallocation: ${queued.length} queued reservation(s) to process`)
+
+  const results: ReallocationResult[] = []
+
+  for (const r of queued) {
+    if (!r.namespace || !r.deployment_name) {
+      await prisma.reservation.update({ where: { id: r.id }, data: { status: 'failed' } })
+      results.push({ reservation_id: r.id, node_id: r.node_id, success: false, error: 'Missing namespace or deployment_name' })
+      continue
+    }
+
+    // Vérifier que la réservation n'a pas expiré pendant l'attente
+    if (r.expires_at && r.expires_at <= new Date()) {
+      await prisma.reservation.update({ where: { id: r.id }, data: { status: 'released', released_at: new Date(), release_reason: 'expired' } })
+      results.push({ reservation_id: r.id, node_id: r.node_id, success: false, error: 'Expired while queued' })
+      continue
+    }
+
+    // Vérifier la capacité disponible
+    const { checkNodeCapacity } = await import('./kubernetes-reserve')
+    const capacity = await checkNodeCapacity(r.node_id, r.cpu_reserved, r.ram_reserved_gb)
+    if (!capacity.available) {
+      results.push({ reservation_id: r.id, node_id: r.node_id, success: false, error: capacity.reason })
+      continue
+    }
+
+    // Appliquer les ressources K8s
+    try {
+      const { createResourceQuota, createLimitRange, scaleDeployment } = await import('./kubernetes-reserve')
+      const spec = {
+        namespace: r.namespace,
+        deployment_name: r.deployment_name,
+        replica_count: 1,
+        cpu_per_replica: r.cpu_reserved,
+        ram_per_replica: r.ram_reserved_gb,
+      }
+      const [quotaOk, limitOk, scaleOk] = await Promise.all([
+        createResourceQuota(spec),
+        createLimitRange(spec),
+        scaleDeployment(r.namespace, r.deployment_name, 1),
+      ])
+
+      const k8sOk = quotaOk && limitOk && scaleOk
+      await prisma.reservation.update({
+        where: { id: r.id },
+        data: { status: k8sOk ? 'active' : 'failed' },
+      })
+
+      console.log(`[auto-release] Reallocation ${k8sOk ? 'succeeded' : 'failed'} for ${r.id} on ${r.node_id}`)
+      results.push({ reservation_id: r.id, node_id: r.node_id, success: k8sOk })
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err)
+      await prisma.reservation.update({ where: { id: r.id }, data: { status: 'failed' } })
+      results.push({ reservation_id: r.id, node_id: r.node_id, success: false, error })
+    }
+  }
+
+  return results
+}
+
 // ─── Point d'entrée principal ─────────────────────────────────────────────────
 export async function runAutoRelease(): Promise<{
   expired: ReleaseResult[]
   load_dropped: ReleaseResult[]
   job_completed: ReleaseResult[]
+  reallocated: ReallocationResult[]
   total_released: number
   ran_at: string
 }> {
@@ -188,8 +269,11 @@ export async function runAutoRelease(): Promise<{
   const load_dropped = await releaseOnLoadDrop()
   const job_completed = await releaseOnJobCompletion()
 
-  const total_released = expired.length + load_dropped.length + job_completed.length
-  console.log(`[auto-release] Done — ${total_released} reservation(s) released`)
+  // Après les releases, tenter de réallouer les réservations en attente
+  const reallocated = await reallocateQueued()
 
-  return { expired, load_dropped, job_completed, total_released, ran_at: new Date().toISOString() }
+  const total_released = expired.length + load_dropped.length + job_completed.length
+  console.log(`[auto-release] Done — ${total_released} released, ${reallocated.filter(r => r.success).length} reallocated`)
+
+  return { expired, load_dropped, job_completed, reallocated, total_released, ran_at: new Date().toISOString() }
 }

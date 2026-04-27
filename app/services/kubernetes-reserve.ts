@@ -55,7 +55,8 @@ export async function createLimitRange(spec: ReservationSpec): Promise<boolean> 
       spec: {
         limits: [
           {
-            type: 'Pod',
+            // type Container : seul type autorisant default + defaultRequest
+            type: 'Container',
             max: { cpu: `${spec.cpu_per_replica}`, memory: `${spec.ram_per_replica}Gi` },
             min: { cpu: '100m', memory: '64Mi' },
             _default: { cpu: `${spec.cpu_per_replica}`, memory: `${spec.ram_per_replica}Gi` },

@@ -23,9 +23,8 @@ scp "$TMP_TAR" "romain@$WORKER1:$TMP_TAR"
 ssh "romain@$WORKER1" "docker load -i $TMP_TAR && rm $TMP_TAR"
 rm "$TMP_TAR"
 
-echo "==> [5/5] Nettoyage quotas + rollout restart"
-kubectl get resourcequota -n "$NAMESPACE" -l managed_by=reserve-endpoint -o name \
-  | xargs -r kubectl delete -n "$NAMESPACE" || true
+echo "==> [5/5] Nettoyage quotas/limitranges + rollout restart"
+kubectl delete resourcequota,limitrange -n "$NAMESPACE" -l managed_by=reserve-endpoint 2>/dev/null || true
 kubectl rollout restart deployment/"$DEPLOYMENT" -n "$NAMESPACE"
 kubectl rollout status deployment/"$DEPLOYMENT" -n "$NAMESPACE"
 

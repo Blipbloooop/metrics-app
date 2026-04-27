@@ -58,9 +58,13 @@ export async function createLimitRange(spec: ReservationSpec): Promise<boolean> 
             // type Container : seul type autorisant default + defaultRequest
             type: 'Container',
             max: { cpu: `${spec.cpu_per_replica}`, memory: `${spec.ram_per_replica}Gi` },
-            min: { cpu: '100m', memory: '64Mi' },
+            // min intentionnellement bas pour ne pas bloquer les petites réservations
+            min: { cpu: '10m', memory: '16Mi' },
             _default: { cpu: `${spec.cpu_per_replica}`, memory: `${spec.ram_per_replica}Gi` },
-            defaultRequest: { cpu: `${spec.cpu_per_replica * 0.5}`, memory: `${spec.ram_per_replica * 0.5}Gi` },
+            defaultRequest: {
+              cpu: `${Math.max(0.01, spec.cpu_per_replica * 0.5)}`,
+              memory: `${Math.max(0.016, spec.ram_per_replica * 0.5)}Gi`,
+            },
           },
         ],
       },

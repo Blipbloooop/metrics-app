@@ -85,12 +85,16 @@ export async function scaleDeployment(
       console.error(`[reserve] Deployment ${deploymentName} has no spec`)
       return false
     }
-    // Merge patch minimal — envoyer l'objet complet provoque une erreur 400 (json-patch vs merge-patch)
-    await k8sAppsApi.patchNamespacedDeployment({
+    // Scale subresource dédié — évite les problèmes de Content-Type avec patchNamespacedDeployment
+    await k8sAppsApi.replaceNamespacedDeploymentScale({
       name: deploymentName,
       namespace,
-      body: { spec: { replicas } },
-      headers: { 'Content-Type': 'application/merge-patch+json' },
+      body: {
+        apiVersion: 'autoscaling/v1',
+        kind: 'Scale',
+        metadata: { name: deploymentName, namespace },
+        spec: { replicas },
+      },
     })
     console.log(`[reserve] Deployment ${deploymentName} scaled to ${replicas} replicas`)
     return true

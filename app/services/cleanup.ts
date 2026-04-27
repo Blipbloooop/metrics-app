@@ -1,6 +1,5 @@
 import * as k8s from '@kubernetes/client-node'
 import prisma from '@/lib/prisma'
-import { deleteReservationResources } from './kubernetes-reserve'
 
 const WATCH_NAMESPACES = ['app-production', 'app-staging', 'default']
 const RELEASED_RETENTION_MS = 24 * 60 * 60 * 1000

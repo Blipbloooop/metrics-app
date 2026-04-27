@@ -1,0 +1,41 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: auto-release
+  namespace: app-production
+spec:
+  schedule: "*/2 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 5
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: auto-release
+              image: curlimages/curl:8.6.0
+              command:
+                - sh
+                - -c
+                - |
+                  curl -sf -X POST \
+                    -H "Authorization: Bearer ${METRICS_INGEST_TOKEN}" \
+                    -H "Content-Type: application/json" \
+                    http://metrics-app-service.app-production.svc.cluster.local:3000/api/auto-release \
+                  && echo "[auto-release] OK" || echo "[auto-release] FAILED"
+              env:
+                - name: METRICS_INGEST_TOKEN
+                  valueFrom:
+                    secretKeyRef:
+                      name: metrics-ingest-token
+                      key: token
+              resources:
+                requests:
+                  cpu: "10m"
+                  memory: "16Mi"
+                limits:
+                  cpu: "50m"
+                  memory: "32Mi"

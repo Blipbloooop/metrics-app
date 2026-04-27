@@ -110,9 +110,12 @@ model Reservation {
   status          String   // "pending" | "active" | "released" | "failed"
   cpu_reserved    Float    // cores réservés
   ram_reserved_gb Float
+  namespace       String?  // namespace K8s du deployment réservé
+  deployment_name String?  // nom du Deployment K8s réservé
   reserved_at     DateTime @default(now())
   released_at     DateTime?
   expires_at      DateTime?
+  release_reason  String?  // "expired" | "load_dropped" | "job_completed" | "manual"
   notes           String?
 
   node            Node       @relation(fields: [node_id], references: [id])

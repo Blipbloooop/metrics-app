@@ -133,6 +133,8 @@ export async function POST(req: NextRequest) {
       status: 'pending',
       cpu_reserved: cpuPerReplica,
       ram_reserved_gb: ramPerReplica,
+      namespace,
+      deployment_name: deploymentName,
       expires_at: new Date(now.getTime() + durationMinutes * 60 * 1000),
       notes: `Auto-réservation ${priority} — CPU ${target.cpu_avg.toFixed(1)}% / RAM ${target.ram_avg.toFixed(1)}%`,
     },

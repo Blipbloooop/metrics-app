@@ -55,6 +55,8 @@ export async function POST(req: NextRequest) {
         status: 'pending',
         cpu_reserved: totalCpuNeeded,
         ram_reserved_gb: totalRamNeeded,
+        namespace: input.namespace,
+        deployment_name: input.deployment_name,
         expires_at: new Date(Date.now() + input.duration_minutes * 60 * 1000),
         notes: input.reason,
       },

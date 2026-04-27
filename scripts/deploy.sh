@@ -24,7 +24,8 @@ ssh "romain@$WORKER1" "docker load -i $TMP_TAR && rm $TMP_TAR"
 rm "$TMP_TAR"
 
 echo "==> [5/5] Nettoyage quotas + rollout restart"
-kubectl delete resourcequota -n "$NAMESPACE" -l managed_by=reserve-endpoint --ignore-not-found
+kubectl get resourcequota -n "$NAMESPACE" -l managed_by=reserve-endpoint -o name \
+  | xargs -r kubectl delete -n "$NAMESPACE" || true
 kubectl rollout restart deployment/"$DEPLOYMENT" -n "$NAMESPACE"
 kubectl rollout status deployment/"$DEPLOYMENT" -n "$NAMESPACE"
 

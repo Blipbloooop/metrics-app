@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await runAutoRelease()
-    return NextResponse.json(result, { status: result.total_released > 0 ? 200 : 204 })
+    return NextResponse.json(result)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     console.error('[auto-release] Fatal error:', message)

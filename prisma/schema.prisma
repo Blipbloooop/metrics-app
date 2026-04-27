@@ -127,6 +127,27 @@ model Reservation {
 }
 
 // ─────────────────────────────────────────
+// Événements Kubernetes collectés
+// ─────────────────────────────────────────
+model KubeEvent {
+  uid         String   @id            // metadata.uid K8s
+  namespace   String
+  type        String                  // "Normal" | "Warning"
+  reason      String                  // "Pulled" | "Failed" | "BackOff" …
+  message     String
+  object_kind String?                 // "Pod" | "Job" | "Deployment"
+  object_name String?
+  count       Int      @default(1)
+  first_time  DateTime
+  last_time   DateTime
+  synced_at   DateTime @default(now())
+
+  @@index([namespace, last_time])
+  @@index([type, last_time])
+  @@map("kube_events")
+}
+
+// ─────────────────────────────────────────
 // Alertes système
 // ─────────────────────────────────────────
 model Alert {

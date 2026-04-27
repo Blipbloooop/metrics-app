@@ -20,6 +20,9 @@ rules:
     resources: ["namespaces"]
     verbs: ["list"]
   - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["list"]
+  - apiGroups: [""]
     resources: ["resourcequotas", "limitranges"]
     verbs: ["get", "list", "create", "delete"]
   - apiGroups: ["apps"]
@@ -30,7 +33,7 @@ rules:
     verbs: ["get", "update"]
   - apiGroups: ["batch"]
     resources: ["jobs"]
-    verbs: ["list"]
+    verbs: ["list", "delete"]
 
 ---
 # ClusterRoleBinding pour lier le ClusterRole au ServiceAccount

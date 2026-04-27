@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, useEffect, FormEvent } from 'react'
 import { useRouter } from 'next/navigation'
 
 const NODES = ['k8s-master', 'k8s-worker-1', 'k8s-worker-2']
@@ -9,6 +9,16 @@ export default function ReservationForm() {
   const router = useRouter()
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState<string | null>(null)
+  const [namespaces, setNamespaces] = useState<string[]>([])
+  const [nsLoading, setNsLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/namespaces')
+      .then(r => r.json())
+      .then(data => setNamespaces(data.namespaces ?? []))
+      .catch(() => setNamespaces(['default', 'app-production']))
+      .finally(() => setNsLoading(false))
+  }, [])
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -68,8 +78,13 @@ export default function ReservationForm() {
 
         <div>
           <label className="block text-xs text-gray-400 mb-1">Namespace</label>
-          <input name="namespace" type="text" required defaultValue="default"
-            className="w-full bg-gray-700 text-gray-100 rounded-lg px-3 py-2 text-sm border border-gray-600 focus:outline-none focus:border-blue-500" />
+          <select name="namespace" required disabled={nsLoading}
+            className="w-full bg-gray-700 text-gray-100 rounded-lg px-3 py-2 text-sm border border-gray-600 focus:outline-none focus:border-blue-500 disabled:opacity-50">
+            {nsLoading
+              ? <option value="">Chargement…</option>
+              : namespaces.map(ns => <option key={ns} value={ns}>{ns}</option>)
+            }
+          </select>
         </div>
 
         <div>

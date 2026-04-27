@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyJWT } from '@/lib/auth'
 import { checkRateLimit } from '@/lib/rate-limit'
 
-const API_PROTECTED = ['/api/reserve', '/api/release', '/api/predict', '/api/forecast']
+const API_PROTECTED = ['/api/reserve', '/api/release', '/api/predict', '/api/forecast', '/api/namespaces']
 
 async function extractJWT(req: NextRequest): Promise<string | null> {
   const authHeader = req.headers.get('authorization')

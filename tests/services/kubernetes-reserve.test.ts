@@ -23,7 +23,7 @@ jest.mock('@kubernetes/client-node', () => {
     listNamespacedLimitRange: jest.fn(),
     deleteNamespacedLimitRange: jest.fn(),
     readNamespacedDeployment: jest.fn(),
-    patchNamespacedDeployment: jest.fn(),
+    replaceNamespacedDeploymentScale: jest.fn(),
   }
 
   return {
@@ -58,7 +58,7 @@ const { _mockApi: mockApi } = jest.requireMock('@kubernetes/client-node') as {
     listNamespacedLimitRange: jest.Mock
     deleteNamespacedLimitRange: jest.Mock
     readNamespacedDeployment: jest.Mock
-    patchNamespacedDeployment: jest.Mock
+    replaceNamespacedDeploymentScale: jest.Mock
   }
 }
 
@@ -72,7 +72,7 @@ beforeEach(() => {
   mockApi.listNamespacedLimitRange.mockReset()
   mockApi.deleteNamespacedLimitRange.mockReset()
   mockApi.readNamespacedDeployment.mockReset()
-  mockApi.patchNamespacedDeployment.mockReset()
+  mockApi.replaceNamespacedDeploymentScale.mockReset()
 })
 
 // ─── checkNodeCapacity ───────────────────────────────────────────────────────
@@ -269,7 +269,7 @@ describe('scaleDeployment', () => {
     mockApi.readNamespacedDeployment.mockResolvedValue({
       spec: { replicas: 1 },
     })
-    mockApi.patchNamespacedDeployment.mockResolvedValue({})
+    mockApi.replaceNamespacedDeploymentScale.mockResolvedValue({})
 
     const result = await scaleDeployment('test-ns', 'my-app', 3)
     expect(result).toBe(true)
@@ -279,10 +279,10 @@ describe('scaleDeployment', () => {
     mockApi.readNamespacedDeployment.mockResolvedValue({
       spec: { replicas: 1 },
     })
-    mockApi.patchNamespacedDeployment.mockResolvedValue({})
+    mockApi.replaceNamespacedDeploymentScale.mockResolvedValue({})
 
     await scaleDeployment('test-ns', 'my-app', 5)
-    expect(mockApi.patchNamespacedDeployment).toHaveBeenCalledWith(
+    expect(mockApi.replaceNamespacedDeploymentScale).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'my-app',
         namespace: 'test-ns',
@@ -297,7 +297,7 @@ describe('scaleDeployment', () => {
     const result = await scaleDeployment('test-ns', 'my-app', 3)
     expect(result).toBe(false)
     // Pas de patch si spec est absent
-    expect(mockApi.patchNamespacedDeployment).not.toHaveBeenCalled()
+    expect(mockApi.replaceNamespacedDeploymentScale).not.toHaveBeenCalled()
   })
 
   it('retourne false sans throw si readNamespacedDeployment lève une exception', async () => {
@@ -306,9 +306,9 @@ describe('scaleDeployment', () => {
     expect(result).toBe(false)
   })
 
-  it('retourne false sans throw si patchNamespacedDeployment lève une exception', async () => {
+  it('retourne false sans throw si replaceNamespacedDeploymentScale lève une exception', async () => {
     mockApi.readNamespacedDeployment.mockResolvedValue({ spec: { replicas: 1 } })
-    mockApi.patchNamespacedDeployment.mockRejectedValue(new Error('Conflict'))
+    mockApi.replaceNamespacedDeploymentScale.mockRejectedValue(new Error('Conflict'))
     const result = await scaleDeployment('test-ns', 'my-app', 3)
     expect(result).toBe(false)
   })

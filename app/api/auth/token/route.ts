@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 })
   }
 
-  const token = await signJWT({ sub: username, role: 'admin' }, 86400) // 24h
+  const token = await signJWT({ sub: username!, role: 'admin' }, 86400) // 24h
 
   return NextResponse.json({ token, expires_in: 86400 })
 }

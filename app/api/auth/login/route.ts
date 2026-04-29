@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Identifiants incorrects' }, { status: 401 })
   }
 
-  const token = await signJWT({ sub: username, role: 'admin' }, 86400)
+  const token = await signJWT({ sub: username!, role: 'admin' }, 86400)
 
   const res = NextResponse.json({ ok: true })
   res.cookies.set('session', token, {

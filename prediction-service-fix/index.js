@@ -69,26 +69,30 @@ async function getNodeMetrics(node, historyMinutes, stepMinutes) {
 function buildStepPrompt(node, cpuHistory, ramHistory, stepMinutes) {
   const cpuStr = cpuHistory.map((v,i) => `t-${(cpuHistory.length-i)*stepMinutes}min: ${v}%`).join(', ');
   const ramStr = ramHistory.map((v,i) => `t-${(ramHistory.length-i)*stepMinutes}min: ${v}%`).join(', ');
-  return `Node "${node}". CPU history: ${cpuStr}. RAM history: ${ramStr}. Predict next values. Reply ONLY with valid JSON: {"cpu_percent":50,"ram_percent":60}`;
+  return `Node "${node}". CPU history: ${cpuStr}. RAM history: ${ramStr}. Identify the trend in one sentence, then reply with JSON {"cpu_percent": <0-100>, "ram_percent": <0-100>}`;
 }
 
 async function generateForecast(node, cpuHistory, ramHistory, horizonMinutes, stepMinutes) {
   const steps = Math.max(1, Math.round(horizonMinutes / stepMinutes));
   const forecast = [];
+  const raw_steps = [];
   let cpu = [...cpuHistory];
   let ram = [...ramHistory];
   for (let i = 1; i <= steps; i++) {
     let cpuVal = clamp(cpu[cpu.length-1]);
     let ramVal = clamp(ram[ram.length-1]);
+    const prompt = buildStepPrompt(node, cpu, ram, stepMinutes);
+    let rawResponse = '';
     try {
-      const raw = await callOllama(buildStepPrompt(node, cpu, ram, stepMinutes));
-      const match = raw.match(/\{[\s\S]*?\}/);
+      rawResponse = await callOllama(prompt);
+      const match = rawResponse.match(/\{[\s\S]*?\}/);
       if (match) {
         const p = JSON.parse(match[0]);
         if (p.cpu_percent != null) cpuVal = clamp(p.cpu_percent);
         if (p.ram_percent != null) ramVal = clamp(p.ram_percent);
       }
     } catch (_) {}
+    raw_steps.push({ step: i, prompt, raw: rawResponse });
     forecast.push({ t: `+${i * stepMinutes}min`, cpu_percent: parseFloat(cpuVal.toFixed(1)), ram_percent: parseFloat(ramVal.toFixed(1)) });
     cpu = [...cpu.slice(1), cpuVal];
     ram = [...ram.slice(1), ramVal];
@@ -97,6 +101,7 @@ async function generateForecast(node, cpuHistory, ramHistory, horizonMinutes, st
   const ramVals = forecast.map(f => f.ram_percent);
   return {
     forecast,
+    raw_steps,
     cpu_avg:  parseFloat((cpuVals.reduce((a,b)=>a+b,0)/cpuVals.length).toFixed(1)),
     cpu_peak: parseFloat(clamp(Math.max(...cpuVals)).toFixed(1)),
     ram_avg:  parseFloat((ramVals.reduce((a,b)=>a+b,0)/ramVals.length).toFixed(1)),
@@ -155,6 +160,7 @@ app.post('/forecast', async (req, res) => {
     return res.json({
       node,
       forecast: result.forecast,
+      raw_steps: result.raw_steps,
       cpu_avg: result.cpu_avg,
       cpu_peak: result.cpu_peak,
       ram_avg: result.ram_avg,

@@ -11,6 +11,13 @@ export const ForecastStepSchema = z.object({
   ram_percent: z.number().min(0).max(100),
 })
 
+// Étape LLM brute contenant les étapes intermédiaires du modèle
+export const LLMStepSchema = z.object({
+  step: z.number().int().min(1),
+  prompt: z.string(),
+  raw: z.string(),
+})
+
 // Réponse attendue du prediction-service /forecast
 export const ForecastServiceResponseSchema = z.object({
   node: z.string(),
@@ -21,6 +28,7 @@ export const ForecastServiceResponseSchema = z.object({
   ram_peak: z.number().min(0).max(100),
   model_used: z.string(),
   timestamp: z.string(),
+  raw_steps: z.array(LLMStepSchema).optional(),
 })
 
 export type ForecastServiceResponse = z.infer<typeof ForecastServiceResponseSchema>
@@ -59,6 +67,7 @@ export const ForecastOutputSchema = z.object({
     oldest: z.coerce.date(),
     newest: z.coerce.date(),
   }),
+  raw_steps: z.array(LLMStepSchema).optional(),
 })
 
 export type ForecastOutput = z.infer<typeof ForecastOutputSchema>

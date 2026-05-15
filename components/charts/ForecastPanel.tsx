@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import ForecastChart from './ForecastChart'
 import SkeletonCard from '@/components/ui/SkeletonCard'
 import StatusBadge from '@/components/ui/StatusBadge'
+import LLMDrawer from '@/components/ui/LLMDrawer'
 import type { NodeForecast } from '@/lib/types/dashboard'
 
 const NODES = ['k8s-master', 'k8s-worker-1', 'k8s-worker-2']
@@ -12,6 +13,7 @@ export default function ForecastPanel() {
   const [forecasts, setForecasts] = useState<NodeForecast[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [openDrawer, setOpenDrawer] = useState<string | null>(null)
 
   useEffect(() => {
     async function fetchForecasts() {
@@ -38,6 +40,7 @@ export default function ForecastPanel() {
             model_used: data.model_used ?? 'unknown',
             timestamp: data.predicted_at ?? new Date().toISOString(),
             riskLevel,
+            llm_steps: data.raw_steps ?? [],
           } as NodeForecast)
         }
         setForecasts(results)
@@ -63,21 +66,43 @@ export default function ForecastPanel() {
   )
 
   return (
-    <div className="grid grid-cols-1 gap-6">
+    <div className="flex flex-col gap-6">
       {forecasts.map(f => (
-        <div key={f.nodeId} className="bg-gray-800 rounded-lg p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-gray-100 font-medium">{f.nodeId}</h3>
-            <StatusBadge level={f.riskLevel} label={`Risque ${f.riskLevel}`} />
+        <div key={f.nodeId} className="flex gap-3 items-start">
+          {/* Carte nœud */}
+          <div className="flex-1 bg-gray-800 rounded-lg p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-gray-100 font-medium">{f.nodeId}</h3>
+              <StatusBadge level={f.riskLevel} label={`Risque ${f.riskLevel}`} />
+            </div>
+            <div className="grid grid-cols-4 gap-2 mb-3 text-sm">
+              <div className="text-gray-400">CPU moy: <span className="text-gray-100">{f.cpu_avg.toFixed(1)}%</span></div>
+              <div className="text-gray-400">CPU pic: <span className="text-gray-100">{f.cpu_peak.toFixed(1)}%</span></div>
+              <div className="text-gray-400">RAM moy: <span className="text-gray-100">{f.ram_avg.toFixed(1)}%</span></div>
+              <div className="text-gray-400">RAM pic: <span className="text-gray-100">{f.ram_peak.toFixed(1)}%</span></div>
+            </div>
+            <ForecastChart forecast={f.forecast} riskLevel={f.riskLevel} cpuPeak={f.cpu_peak} />
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-gray-500">Modèle: {f.model_used} — {new Date(f.timestamp).toLocaleTimeString('fr-FR')}</p>
+              {(f.llm_steps?.length ?? 0) > 0 && (
+                <button
+                  onClick={() => setOpenDrawer(openDrawer === f.nodeId ? null : f.nodeId)}
+                  className="text-xs text-gray-500 hover:text-blue-400 transition-colors border border-gray-700 hover:border-blue-600 rounded px-2 py-1"
+                >
+                  🤖 {openDrawer === f.nodeId ? 'Masquer' : 'Voir'} prompt & réponse IA
+                </button>
+              )}
+            </div>
           </div>
-          <div className="grid grid-cols-4 gap-2 mb-3 text-sm">
-            <div className="text-gray-400">CPU moy: <span className="text-gray-100">{f.cpu_avg.toFixed(1)}%</span></div>
-            <div className="text-gray-400">CPU pic: <span className="text-gray-100">{f.cpu_peak.toFixed(1)}%</span></div>
-            <div className="text-gray-400">RAM moy: <span className="text-gray-100">{f.ram_avg.toFixed(1)}%</span></div>
-            <div className="text-gray-400">RAM pic: <span className="text-gray-100">{f.ram_peak.toFixed(1)}%</span></div>
-          </div>
-          <ForecastChart forecast={f.forecast} riskLevel={f.riskLevel} cpuPeak={f.cpu_peak} />
-          <p className="text-xs text-gray-500 mt-2">Modèle: {f.model_used} — {new Date(f.timestamp).toLocaleTimeString('fr-FR')}</p>
+
+          {/* Drawer latéral */}
+          {openDrawer === f.nodeId && f.llm_steps && (
+            <LLMDrawer
+              nodeId={f.nodeId}
+              steps={f.llm_steps}
+              onClose={() => setOpenDrawer(null)}
+            />
+          )}
         </div>
       ))}
     </div>

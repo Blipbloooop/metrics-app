@@ -140,6 +140,7 @@ export async function POST(req: NextRequest) {
         oldest: rawMetrics[0].collected_at,
         newest: rawMetrics[rawMetrics.length - 1].collected_at,
       },
+      raw_steps: forecastResult.raw_steps ?? [],
     },
     { status: 201 },
   )

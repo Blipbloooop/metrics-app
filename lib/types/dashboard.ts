@@ -25,6 +25,12 @@ export interface ForecastStep {
   ram_percent: number
 }
 
+export interface LLMStep {
+  step: number    // numéro du pas (1..N)
+  prompt: string  // prompt envoyé à Ollama
+  raw: string     // réponse brute (raisonnement + JSON)
+}
+
 export interface NodeForecast {
   nodeId: string
   forecast: ForecastStep[]
@@ -35,6 +41,7 @@ export interface NodeForecast {
   riskLevel: 'low' | 'medium' | 'high'
   model_used: string
   timestamp: string   // ISO string (même sémantique que lastCollectedAt dans NodeCurrentMetrics)
+  llm_steps?: LLMStep[]   // interactions brutes avec Ollama pour affichage en drawer UI
 }
 
 export interface ActiveReservation {

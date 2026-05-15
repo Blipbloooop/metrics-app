@@ -1,35 +1,11 @@
 'use client'
 
-import React from 'react'
 import type { LLMStep } from '@/lib/types/dashboard'
 
 interface LLMDrawerProps {
   nodeId: string
   steps: LLMStep[]
   onClose: () => void
-}
-
-/**
- * Renders text while splitting occurrences of `needle` across two adjacent
- * inline elements so that no single DOM element exposes the full needle as a
- * direct text-node child. This prevents @testing-library/react's `getByText`
- * from finding multiple matching nodes when the same value appears in both the
- * title and in the prompt payloads.
- */
-function renderSplit(text: string, needle: string): React.ReactNode {
-  if (!needle || !text.includes(needle)) return text
-  const half = Math.ceil(needle.length / 2)
-  const a = needle.slice(0, half)
-  const b = needle.slice(half)
-  const parts = text.split(needle)
-  return parts.reduce<React.ReactNode[]>((acc, part, i) => {
-    if (i > 0) {
-      acc.push(<span key={`sa-${i}`}>{a}</span>)
-      acc.push(<span key={`sb-${i}`}>{b}</span>)
-    }
-    if (part) acc.push(part)
-    return acc
-  }, [])
 }
 
 export default function LLMDrawer({ nodeId, steps, onClose }: LLMDrawerProps) {
@@ -60,7 +36,7 @@ export default function LLMDrawer({ nodeId, steps, onClose }: LLMDrawerProps) {
 
               <p className="text-xs text-gray-500 font-bold mb-1">Prompt →</p>
               <pre className="text-xs font-mono text-green-300 bg-black rounded p-2 whitespace-pre-wrap break-all border border-gray-800 leading-relaxed">
-                {renderSplit(s.prompt, nodeId)}
+                {s.prompt}
               </pre>
 
               <p className="text-xs text-gray-500 font-bold mt-2 mb-1">Réponse brute ←</p>

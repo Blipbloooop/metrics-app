@@ -5,12 +5,12 @@ import type { LLMStep } from '@/lib/types/dashboard'
 const mockSteps: LLMStep[] = [
   {
     step: 1,
-    prompt: 'Node "k8s-worker-1". CPU history: t-30min: 48%, t-25min: 51%.',
+    prompt: 'Node "worker-1". CPU history: t-30min: 48%, t-25min: 51%.',
     raw: 'CPU shows an upward trend. {"cpu_percent": 71, "ram_percent": 74}',
   },
   {
     step: 2,
-    prompt: 'Node "k8s-worker-1". CPU history: t-25min: 51%, t-20min: 55%.',
+    prompt: 'Node "worker-1". CPU history: t-25min: 51%, t-20min: 55%.',
     raw: '{"cpu_percent": 73, "ram_percent": 75}',
   },
 ]

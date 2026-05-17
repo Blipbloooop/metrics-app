@@ -75,7 +75,7 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // 5. Évaluer le risque de surcharge (PRV-24)
+  // 5. Évaluer le risque de surcharge
   const riskAssessment = assessRisk(forecastResult.cpu_peak, forecastResult.ram_peak)
 
   // 6. Sauvegarder la prédiction globale en DB (résumé du forecast)
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
     },
   })
 
-  // 6b. Créer une alerte si les seuils CPU/RAM sont dépassés (PRV-56)
+  // 6b. Créer une alerte si les seuils CPU/RAM sont dépassés
   const CPU_WARNING = parseFloat(process.env.ALERT_CPU_WARNING ?? '70')
   const CPU_CRITICAL = parseFloat(process.env.ALERT_CPU_CRITICAL ?? '90')
   const RAM_WARNING = parseFloat(process.env.ALERT_RAM_WARNING ?? '75')

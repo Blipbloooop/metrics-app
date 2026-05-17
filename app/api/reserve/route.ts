@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   const capacityCheck = await checkNodeCapacity(input.node_id, totalCpuNeeded, totalRamNeeded)
 
-  // Capacité insuffisante → mise en file d'attente (PRV-43)
+  // Capacité insuffisante → mise en file d'attente
   if (!capacityCheck.available) {
     const queued = await prisma.reservation.create({
       data: {

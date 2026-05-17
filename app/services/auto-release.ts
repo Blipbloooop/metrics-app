@@ -173,7 +173,7 @@ export async function releaseOnJobCompletion(): Promise<ReleaseResult[]> {
   return results
 }
 
-// ─── Réallocation des ressources libérées (PRV-43) ───────────────────────────
+// ─── Réallocation des ressources libérées ────────────────────────────────────
 // Après chaque cycle de release, tente d'activer les réservations en attente.
 // Ordre : manuelles en priorité (triggered_by='manual'), puis FIFO par reserved_at.
 export interface ReallocationResult {

@@ -1,12 +1,12 @@
 /**
- * Configuration des prompts et options Ollama (PRV-26)
+ * Configuration des prompts et options Ollama
  *
  * Ce fichier centralise :
  * - Les templates de prompt envoyés au prediction-service
  * - Les options Ollama (temperature, num_predict, stream)
  *
  * Toutes les valeurs sont configurables via variables d'environnement.
- * Le prediction-service (Express, maintenu par Romain) doit lire
+ * Le prediction-service (Express) doit lire
  * le champ "ollama_options" du payload pour les appliquer à Ollama.
  *
  * Variables d'environnement disponibles :

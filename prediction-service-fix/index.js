@@ -111,7 +111,7 @@ async function generateForecast(node, cpuHistory, ramHistory, horizonMinutes, st
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', ollama_url: OLLAMA_URL, prometheus_url: PROMETHEUS_URL, model: MODEL }));
 
-// POST /predict — format attendu par le Next.js compilé (PRV-3)
+// POST /predict — format attendu par le Next.js
 // Input: { node_id, current_cpu_percent, current_ram_percent, current_disk_percent, trend_direction, prediction_horizon_minutes }
 // Output: { request_id, timestamp, prediction: {...}, model_info: {...} }
 app.post('/predict', async (req, res) => {

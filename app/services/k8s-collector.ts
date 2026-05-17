@@ -399,9 +399,7 @@ class K8sMetricsCollector {
             const matchingPods = podMetrics.filter((pod) => {
               if (pod.namespace !== namespace) return false;
 
-              const podLabels = podMetricsMap[pod.id]
-                ? {} // TODO: récupérer les labels depuis le pod
-                : {};
+              const podLabels = podMetricsMap[pod.id] ? {} : {};
 
               // Vérifier si le pod correspond au sélecteur
               for (const [key, value] of Object.entries(selector)) {

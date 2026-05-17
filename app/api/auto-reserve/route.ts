@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // 3. Scorer les nodes éligibles (PRV-37)
+  // 3. Scorer les nodes éligibles
   // score = cpu_avg × 0.5 + ram_avg × 0.3 + active_reservations × 0.2
   const scored = eligible
     .map((s) => ({
@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
   const target = scored[0]
 
-  // 4. Calculer les ressources à réserver avec la marge de sécurité (PRV-40)
+  // 4. Calculer les ressources à réserver avec la marge de sécurité
   const excessCpuPct = Math.max(0, target.cpu_avg - 70) / 100
   const excessRamPct = Math.max(0, target.ram_avg - 70) / 100
 

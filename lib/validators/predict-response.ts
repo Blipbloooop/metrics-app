@@ -1,10 +1,10 @@
 import { z } from 'zod'
 
 /**
- * Contrat API standardisé pour POST /api/predict (PRV-27)
+ * Contrat API standardisé pour POST /api/predict
  */
 
-// Réponse attendue du prediction-service /predict (contrat PRV-27)
+// Réponse attendue du prediction-service /predict
 export const PredictionServiceResponseSchema = z.object({
   node: z.string(),
   predicted_cpu_percent: z.number().min(0).max(100),

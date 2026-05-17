@@ -1,7 +1,7 @@
 import { z } from 'zod'
 
 /**
- * Contrat API standardisé pour POST /api/forecast (PRV-27)
+ * Contrat API standardisé pour POST /api/forecast
  */
 
 // Un pas de prédiction dans le forecast

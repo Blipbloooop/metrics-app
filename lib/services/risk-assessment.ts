@@ -1,5 +1,5 @@
 /**
- * Évaluation du risque de surcharge (PRV-24)
+ * Évaluation du risque de surcharge
  *
  * Règles déterministes basées sur les pics CPU/RAM prédits.
  * Seuils configurables via variables d'environnement.

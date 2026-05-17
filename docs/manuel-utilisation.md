@@ -165,6 +165,56 @@ ne "mémorise" pas les cycles long-terme de l'infrastructure.
 
 ### 2.4 Scénario de charge de pointe
 
+Ce scénario illustre l'utilité concrète du module de prédiction lors d'une montée
+en charge prévisible (arrivée des utilisateurs le matin).
+
+#### Contexte
+
+k8s-worker-1 héberge l'application Next.js, le prediction-service et Ollama. À 8h50,
+un opérateur consulte le dashboard et observe la tendance suivante :
+
+| Heure  | CPU (%) | RAM (%) |
+|--------|---------|---------|
+| 08:20  | 22      | 44      |
+| 08:25  | 28      | 45      |
+| 08:30  | 35      | 47      |
+| 08:35  | 48      | 50      |
+| 08:40  | 61      | 53      |
+| 08:45  | 70      | 56      |
+
+La courbe CPU monte régulièrement (+8 à +13 points toutes les 5 minutes).
+
+#### Forecast lancé à 8h50 (horizon 30 min, step 5 min)
+
+L'opérateur lance un forecast sur k8s-worker-1. Le LLM identifie la tendance :
+> "CPU steadily increasing due to morning load spike, likely to continue rising."
+
+Prédiction générée :
+
+| Heure prévue | CPU prédit (%) | RAM prédite (%) | Risque     |
+|--------------|----------------|-----------------|------------|
+| 08:55        | 77             | 59              | **medium** |
+| 09:00        | 82             | 61              | **medium** |
+| 09:05        | 86             | 63              | **medium → high** |
+| 09:10        | 89             | 65              | **high**   |
+| 09:15        | 92             | 67              | **high**   |
+| 09:20        | 94             | 69              | **high** — "Intervention requise immédiatement" |
+
+#### Actions recommandées affichées dans le dashboard
+
+- Badge rouge sur la carte de k8s-worker-1
+- Recommandation : "Intervention requise immédiatement"
+- Options disponibles via l'interface :
+  1. **Libérer des réservations** : aller dans Réservations et libérer les quotas
+     non critiques sur k8s-worker-1
+  2. **Réduire la charge** : migrer manuellement des déploiements secondaires vers
+     k8s-worker-2 via `kubectl scale` ou en modifiant le `nodeSelector`
+
+#### Ce que ce scénario démontre
+
+Le module de prédiction donne à l'opérateur une fenêtre d'action de 15 à 20 minutes
+avant la saturation, permettant une intervention proactive plutôt que réactive.
+
 ## 3. Prérequis et installation
 ### 3.1 Infrastructure matérielle
 ### 3.2 Logiciels requis

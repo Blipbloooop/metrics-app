@@ -475,10 +475,90 @@ kubectl logs -n app-production deployment/metrics-app --tail=20
 
 ## 5. Guide utilisateur
 ### 5.1 Connexion
+
+Ouvrir un navigateur et accéder à : `http://metrics.local`
+
+La page de login s'affiche. Saisir les identifiants par défaut :
+- **Identifiant :** `admin`
+- **Mot de passe :** `admin1234`
+
+> En production, ces identifiants sont à modifier via les variables d'environnement
+> `ADMIN_USERNAME` et `ADMIN_PASSWORD` dans `k8s/nextjs-app.yaml`.
+
 ### 5.2 Dashboard principal
+
+Après connexion, le dashboard affiche :
+
+**Cartes de nœuds (NodeCard)**
+Une carte par nœud du cluster (k8s-master, k8s-worker-1, k8s-worker-2), affichant :
+- CPU actuel en pourcentage avec jauge visuelle
+- RAM actuelle en pourcentage avec jauge visuelle
+- Statut du nœud (badge vert/orange/rouge selon la charge)
+- Alerte si une réservation est active sur ce nœud
+
+**Graphique CPU/RAM (CpuRamChart)**
+Sous les cartes, un graphique de courbes affiche l'évolution historique des métriques
+(1 heure par défaut) pour le nœud sélectionné.
+
+**Rafraîchissement automatique**
+Le dashboard se rafraîchit toutes les 30 secondes pour afficher les métriques à jour.
+
 ### 5.3 Panel de prédiction
+
+Le panel de prédiction est accessible depuis le dashboard principal.
+
+**Lancer un forecast :**
+1. Sélectionner le nœud à analyser dans le menu déroulant
+2. Laisser les paramètres par défaut : horizon = 30 minutes, step = 5 minutes
+3. Cliquer sur **"Lancer la prédiction"**
+4. Patienter 10-20 secondes (le LLM génère 6 steps successifs)
+
+**Lire les résultats :**
+- Le graphique `ForecastChart` affiche la courbe de prédiction CPU et RAM sur les
+  30 prochaines minutes
+- Un badge indique le niveau de risque global :
+  - **Vert (low)** : charge prévue maîtrisée, aucune action requise
+  - **Orange (medium)** : charge élevée prévue, surveillance recommandée
+  - **Rouge (high)** : saturation prévue, intervention requise
+
+**Drawer LLM (détail du raisonnement) :**
+En cliquant sur **"Voir le raisonnement du LLM"**, un panneau latéral s'ouvre et
+affiche pour chaque step prédit :
+- Le prompt envoyé au modèle
+- La réponse brute du LLM (incluant son analyse de tendance)
+- Les valeurs CPU/RAM extraites
+
+Cette fonctionnalité permet de comprendre et auditer les décisions du modèle.
+
 ### 5.4 Réservation manuelle de ressources
+
+La section Réservations permet d'allouer des quotas CPU/RAM sur un namespace Kubernetes.
+
+**Créer une réservation :**
+1. Choisir le namespace cible dans la liste déroulante
+2. Saisir les ressources à réserver (ex : CPU = 500m, RAM = 256Mi)
+3. Définir la durée de la réservation (en minutes)
+4. Cliquer sur **"Réserver"**
+
+L'application crée un `ResourceQuota` et un `LimitRange` sur ce namespace via l'API Kubernetes.
+
+**Libérer une réservation :**
+Cliquer sur le bouton **"Libérer"** à côté de la réservation active dans la liste.
+Les quotas K8s associés sont supprimés immédiatement.
+
+**Libération automatique :**
+Un CronJob vérifie toutes les 5 minutes les réservations expirées et les libère
+automatiquement sans intervention manuelle.
+
 ### 5.5 Événements et alertes Kubernetes
+
+La section Événements affiche en temps réel les événements K8s collectés par le CronJob
+`cronjob-events` :
+- Pods en état `Pending` ou `CrashLoopBackOff`
+- Nœuds `NotReady`
+- Échecs de scheduling
+
+Un badge rouge dans le header indique le nombre d'alertes actives non acquittées.
 
 ## 6. Annexes
 ### 6.1 Prompts IA utilisés

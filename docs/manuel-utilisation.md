@@ -306,7 +306,7 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/cont
 Sur k8s-master :
 
 ```bash
-git clone <url-du-repo> /opt/metrics-app
+git clone https://github.com/<votre-org>/metrics-app.git /opt/metrics-app
 cd /opt/metrics-app
 ```
 

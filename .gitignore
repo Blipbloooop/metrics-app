@@ -40,6 +40,14 @@ next-env.d.ts
 metrics-app
 Jira.csv
 
-# claude
+# claude / outils IA (ne pas committer)
 .claude/
 CLAUDE.md
+.superpowers/
+docs/superpowers/
+
+# interne projet
+ETAT_PRV3.md
+
+# éditeur
+.vscode/

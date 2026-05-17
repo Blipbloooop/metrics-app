@@ -122,6 +122,47 @@ Quand l'utilisateur lance une prédiction pour un nœud donné, voici ce qui se 
   demande d'identifier la tendance puis prédire le prochain step en JSON
 
 ### 2.3 Pourquoi un LLM plutôt qu'un réseau de neurones classique ?
+
+#### L'alternative classique : LSTM / RNN
+
+Pour prédire des séries temporelles de métriques, l'approche classique serait un
+réseau de neurones récurrents de type LSTM (Long Short-Term Memory). Ce type de
+modèle est conçu précisément pour capturer les dépendances temporelles dans des
+données séquentielles (charge CPU qui monte chaque matin à 9h, par exemple).
+
+#### Pourquoi nous avons choisi un LLM
+
+| Critère                   | LSTM/RNN                              | LLM (qwen2:0.5b)                        |
+|---------------------------|---------------------------------------|------------------------------------------|
+| **Données d'entraînement**| Des semaines/mois de métriques labellisées nécessaires | Aucune — le prompt suffit |
+| **Mise en service**       | Pipeline : collecte → entraînement → évaluation → déploiement | Immédiat, modèle pré-entraîné |
+| **Flexibilité**           | Changer le comportement = réentraîner | Changer le comportement = modifier le prompt |
+| **Explication**           | Boîte noire numérique                 | Peut générer une explication en langage naturel |
+| **Précision sur patterns cycliques** | Excellente (après entraînement) | Correcte, pas optimale |
+| **Latence**               | < 10 ms par inférence                 | 1-3 s par step (6-18 s pour 30 min) |
+| **Ressources**            | Léger à l'inférence                   | ~350 MB de modèle, 2 GB RAM minimum |
+
+#### Justification du choix dans notre contexte
+
+Dans le contexte de ce projet académique, le LLM présente trois avantages décisifs :
+
+1. **Aucun bootstrap de données** : un LSTM nécessite d'accumuler suffisamment de
+   métriques historiques avant de pouvoir être entraîné. Avec un LLM, la prédiction
+   fonctionne dès le premier jour.
+
+2. **Raisonnement explicable** : le modèle identifie la tendance en une phrase avant
+   de prédire (ex: "CPU steadily increasing, likely to continue rising"). Cette
+   transparence est précieuse pour un outil d'aide à la décision opérationnelle.
+
+3. **Déploiement simplifié** : Ollama + qwen2:0.5b se déploie en un seul pod K8s,
+   sans infrastructure MLOps dédiée (MLflow, feature store, serving GPU, etc.).
+
+#### Limite principale
+
+La précision sur des patterns très réguliers (charge de pointe quotidienne identique)
+serait meilleure avec un LSTM entraîné. Le LLM raisonne sur la tendance récente mais
+ne "mémorise" pas les cycles long-terme de l'infrastructure.
+
 ### 2.4 Scénario de charge de pointe
 
 ## 3. Prérequis et installation

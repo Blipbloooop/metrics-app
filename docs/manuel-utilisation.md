@@ -29,6 +29,48 @@ L'application intègre deux fonctionnalités avancées :
 
 ## 2. Architecture et choix techniques
 ### 2.1 Vue d'ensemble de l'architecture
+
+Le système est composé de six composants déployés sur un cluster Kubernetes
+à trois nœuds (k8s-master, k8s-worker-1, k8s-worker-2) :
+
+```
+Navigateur
+    │
+    ▼
+[Next.js App — app-production — k8s-worker-1:3000]
+    │                  │
+    │                  ▼
+    │        [prediction-service — ai-module — k8s-worker-1:3001]
+    │                  │
+    │                  ▼
+    │         [Ollama qwen2:0.5b — ai-module — k8s-worker-1:11434]
+    │
+    ▼
+[PostgreSQL — default — k8s-worker-1:5432]
+    ▲
+    │
+[CronJobs scraper/aggregator] ← [Prometheus — monitoring:9090]
+                                       ▲
+                               node_exporter (chaque nœud)
+```
+
+| Composant          | Namespace       | Nœud K8s     | Port  | Rôle                                        |
+|--------------------|-----------------|--------------|-------|---------------------------------------------|
+| Next.js App        | app-production  | k8s-worker-1 | 3000  | Interface web, API REST, orchestration      |
+| prediction-service | ai-module       | k8s-worker-1 | 3001  | Prédiction CPU/RAM via prompts LLM          |
+| Ollama             | ai-module       | k8s-worker-1 | 11434 | Moteur d'inférence LLM (qwen2:0.5b)         |
+| PostgreSQL         | default         | k8s-worker-1 | 5432  | Stockage métriques, réservations, forecasts |
+| Prometheus         | monitoring      | —            | 9090  | Collecte métriques node_exporter            |
+| Grafana            | monitoring      | —            | 3000  | Visualisation Prometheus (optionnel)        |
+
+**Flux de données principal :**
+1. node_exporter expose les métriques brutes de chaque nœud sur le port 9100
+2. Prometheus scrape node_exporter toutes les 30 secondes
+3. Le CronJob scraper interroge Prometheus et insère les données dans PostgreSQL
+4. Next.js lit PostgreSQL pour afficher les métriques en temps réel
+5. Pour la prédiction, Next.js délègue au prediction-service qui interroge directement
+   Prometheus et Ollama
+
 ### 2.2 Le système de prédiction — fonctionnement détaillé
 ### 2.3 Pourquoi un LLM plutôt qu'un réseau de neurones classique ?
 ### 2.4 Scénario de charge de pointe

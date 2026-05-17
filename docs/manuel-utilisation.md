@@ -217,8 +217,88 @@ avant la saturation, permettant une intervention proactive plutôt que réactive
 
 ## 3. Prérequis et installation
 ### 3.1 Infrastructure matérielle
+
+Le projet requiert trois machines Linux (physiques ou VMs) avec Ubuntu 22.04 LTS.
+
+| Machine      | IP               | CPU    | RAM   | Disque | Rôle K8s      |
+|--------------|------------------|--------|-------|--------|---------------|
+| k8s-master   | 192.168.10.213   | 2 vCPU | 4 GB  | 30 GB  | Control plane |
+| k8s-worker-1 | 192.168.10.243   | 4 vCPU | 8 GB  | 50 GB  | Worker principal (Ollama, app, DB) |
+| k8s-worker-2 | 192.168.10.126   | 2 vCPU | 4 GB  | 30 GB  | Worker secondaire |
+
+> **Note :** k8s-worker-1 nécessite 8 GB de RAM minimum pour faire tourner simultanément
+> Ollama (2-4 GB), PostgreSQL (512 MB), le prediction-service (256 MB) et Next.js (512 MB).
+
 ### 3.2 Logiciels requis
+
+À installer sur **chaque machine** :
+
+```bash
+# Docker Engine
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER
+
+# kubeadm, kubelet, kubectl (version 1.28)
+sudo apt-get update
+sudo apt-get install -y apt-transport-https ca-certificates curl
+curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.28/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.28/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list
+sudo apt-get update
+sudo apt-get install -y kubelet kubeadm kubectl
+sudo systemctl enable kubelet
+```
+
+À installer sur **k8s-master uniquement** :
+
+```bash
+# Helm 3
+curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# git
+sudo apt-get install -y git
+```
+
 ### 3.3 Configuration réseau
+
+Sur **chaque machine**, ajouter dans `/etc/hosts` :
+
+```
+192.168.10.213  k8s-master
+192.168.10.243  k8s-worker-1
+192.168.10.126  k8s-worker-2
+192.168.10.213  metrics.local
+```
+
+Désactiver le swap (requis par Kubernetes) :
+
+```bash
+sudo swapoff -a
+sudo sed -i '/ swap / s/^/#/' /etc/fstab
+```
+
+Initialiser le cluster (sur k8s-master) :
+
+```bash
+sudo kubeadm init --pod-network-cidr=10.244.0.0/16
+mkdir -p $HOME/.kube
+sudo cp /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown $(id -u):$(id -g) $HOME/.kube/config
+
+# Installer Flannel (réseau pods)
+kubectl apply -f https://raw.githubusercontent.com/flannel-io/flannel/master/Documentation/kube-flannel.yml
+```
+
+Joindre les workers (commande affichée par kubeadm init, à exécuter sur chaque worker) :
+
+```bash
+sudo kubeadm join 192.168.10.213:6443 --token <token> --discovery-token-ca-cert-hash sha256:<hash>
+```
+
+Installer nginx Ingress Controller :
+
+```bash
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.8.2/deploy/static/provider/baremetal/deploy.yaml
+```
 
 ## 4. Déploiement complet
 ### 4.1 Récupération du code source

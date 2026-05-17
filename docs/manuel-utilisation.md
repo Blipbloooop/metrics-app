@@ -562,5 +562,112 @@ Un badge rouge dans le header indique le nombre d'alertes actives non acquittée
 
 ## 6. Annexes
 ### 6.1 Prompts IA utilisés
+
+Ces prompts sont envoyés au modèle Ollama qwen2:0.5b par le prediction-service.
+
+#### Prompt /predict (prédiction simple)
+
+Source : `prediction-service-fix/index.js`, ligne 125
+
+```
+Node "${node}". CPU: ${cpuHistory.join(', ')}%. RAM: ${ramHistory.join(', ')}%.
+Predict next values. Reply ONLY with valid JSON: {"cpu_percent":50,"ram_percent":60}
+```
+
+Exemple concret pour k8s-worker-1 :
+```
+Node "k8s-worker-1". CPU: 22.0, 28.5, 35.1, 48.3, 61.0, 70.2%.
+RAM: 44.1, 45.0, 47.2, 50.1, 53.3, 56.0%.
+Predict next values. Reply ONLY with valid JSON: {"cpu_percent":50,"ram_percent":60}
+```
+
+Réponse attendue du LLM :
+```json
+{"cpu_percent": 76, "ram_percent": 58}
+```
+
+#### Prompt /forecast (un prompt par step, approche auto-régressive)
+
+Source : `prediction-service-fix/index.js`, fonction `buildStepPrompt`, ligne 69
+
+```
+Node "${node}". CPU history: ${cpuStr}. RAM history: ${ramStr}.
+Identify the trend in one sentence, then reply with JSON {"cpu_percent": <0-100>, "ram_percent": <0-100>}
+```
+
+Exemple au step 1 :
+```
+Node "k8s-worker-1".
+CPU history: t-30min: 22.0%, t-25min: 28.5%, t-20min: 35.1%, t-15min: 48.3%, t-10min: 61.0%, t-5min: 70.2%.
+RAM history: t-30min: 44.1%, t-25min: 45.0%, t-20min: 47.2%, t-15min: 50.1%, t-10min: 53.3%, t-5min: 56.0%.
+Identify the trend in one sentence, then reply with JSON {"cpu_percent": <0-100>, "ram_percent": <0-100>}
+```
+
+Réponse typique du LLM :
+```
+CPU is steadily increasing due to a morning load spike, likely to continue rising.
+{"cpu_percent": 77, "ram_percent": 59}
+```
+
+**Paramètres d'inférence :** `temperature: 0.1, num_predict: 256`
+
+`temperature: 0.1` rend le modèle quasi-déterministe pour limiter les variations imprévisibles.
+
+---
+
 ### 6.2 Variables d'environnement
+
+#### Next.js App (`k8s/nextjs-app.yaml`)
+
+| Variable                  | Valeur par défaut                                                               | Description                     |
+|---------------------------|---------------------------------------------------------------------------------|---------------------------------|
+| `DATABASE_URL`            | postgresql://metrics_user:metrics_password@postgres:5432/k8s_metrics           | Connexion PostgreSQL            |
+| `JWT_SECRET`              | change-me-in-production                                                         | Secret pour les tokens JWT      |
+| `ADMIN_USERNAME`          | admin                                                                           | Identifiant administrateur      |
+| `ADMIN_PASSWORD`          | admin1234                                                                       | Mot de passe administrateur     |
+| `PREDICTION_SERVICE_URL`  | http://prediction-service.ai-module.svc.cluster.local:3001                     | URL prediction-service          |
+| `PROMETHEUS_URL`          | http://monitoring-kube-prometheus-prometheus.monitoring.svc:9090               | URL Prometheus                  |
+
+#### prediction-service (`k8s/prediction-service.yaml`)
+
+| Variable          | Valeur par défaut                                                                        | Description       |
+|-------------------|------------------------------------------------------------------------------------------|-------------------|
+| `OLLAMA_URL`      | http://ollama-service:11434                                                              | URL Ollama        |
+| `OLLAMA_MODEL`    | qwen2:0.5b                                                                               | Modèle à utiliser |
+| `PROMETHEUS_URL`  | http://monitoring-kube-prometheus-prometheus.monitoring.svc.cluster.local:9090          | URL Prometheus    |
+
+---
+
 ### 6.3 Commandes de diagnostic
+
+```bash
+# État de tous les pods
+kubectl get pods --all-namespaces
+
+# Logs de l'application Next.js
+kubectl logs -n app-production deployment/metrics-app --tail=50
+
+# Logs du prediction-service
+kubectl logs -n ai-module deployment/prediction-service --tail=50
+
+# Logs Ollama
+kubectl logs -n ai-module deployment/ollama --tail=20
+
+# Tester Ollama directement
+kubectl exec -n ai-module deployment/ollama -- \
+  ollama run qwen2:0.5b "Reply with JSON: {\"cpu_percent\": 50}"
+
+# Vérifier la santé du prediction-service
+kubectl exec -n ai-module deployment/prediction-service -- \
+  wget -qO- http://localhost:3001/health
+
+# Forcer le scraper immédiatement (sans attendre le cron)
+kubectl create job --from=cronjob/metrics-scraper manual-scraper-test -n app-production
+
+# Vérifier les réservations actives en base
+kubectl exec -n default statefulset/postgres -- \
+  psql -U metrics_user -d k8s_metrics -c "SELECT * FROM reservations WHERE status='active';"
+
+# Redéployer l'app après une modification
+cd /opt/metrics-app && ./scripts/deploy.sh
+```

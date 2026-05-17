@@ -302,14 +302,176 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/cont
 
 ## 4. Déploiement complet
 ### 4.1 Récupération du code source
+
+Sur k8s-master :
+
+```bash
+git clone <url-du-repo> /opt/metrics-app
+cd /opt/metrics-app
+```
+
 ### 4.2 Namespaces Kubernetes
+
+```bash
+kubectl create namespace app-production
+kubectl create namespace ai-module
+```
+
+Vérification :
+```bash
+kubectl get namespaces
+# Doit afficher : app-production, ai-module, default, monitoring (après Prometheus)
+```
+
 ### 4.3 Base de données PostgreSQL
+
+```bash
+kubectl apply -f k8s/postgres/postgres-storage.yaml
+kubectl apply -f k8s/postgres/postgres-statefulset.yaml
+kubectl apply -f k8s/postgres/postgres-service.yaml
+```
+
+Attendre que le pod soit prêt :
+```bash
+kubectl wait --for=condition=ready pod -l app=postgres -n default --timeout=120s
+```
+
+Vérification :
+```bash
+kubectl get pod -l app=postgres -n default
+# STATUS doit être Running
+```
+
 ### 4.4 Prometheus et Grafana
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm install monitoring prometheus-community/kube-prometheus-stack \
+  --namespace monitoring \
+  --create-namespace \
+  --set grafana.adminPassword=admin
+```
+
+Appliquer le ServiceMonitor de l'application :
+```bash
+kubectl apply -f k8s/servicemonitor.yaml
+kubectl apply -f k8s/grafana-datasource-postgres.yaml
+```
+
+Vérification :
+```bash
+kubectl get pods -n monitoring
+# Tous les pods doivent être Running (peut prendre 2-3 minutes)
+```
+
 ### 4.5 Application Next.js
+
+Sur k8s-master, construire l'image et la transférer sur k8s-worker-1 :
+
+```bash
+cd /opt/metrics-app
+chmod +x scripts/deploy.sh
+./scripts/deploy.sh
+```
+
+Ce script effectue les opérations suivantes :
+1. `git pull` pour récupérer la dernière version
+2. `docker build` de l'image Next.js
+3. `docker save` + `scp` vers k8s-worker-1 + `docker load`
+4. Redémarrage du déploiement K8s
+
+Appliquer les manifests K8s (première fois uniquement) :
+```bash
+kubectl apply -f k8s/nextjs-app.yaml
+```
+
+Vérification :
+```bash
+kubectl get pods -n app-production
+kubectl get ingress -n app-production
+# L'ingress metrics-app-ingress doit apparaître avec l'host metrics.local
+```
+
 ### 4.6 Ollama (moteur LLM)
+
+Créer le répertoire de stockage sur k8s-worker-1 :
+```bash
+ssh romain@192.168.10.243 "sudo mkdir -p /data/ollama-models && sudo chmod 777 /data/ollama-models"
+```
+
+Déployer Ollama sur K8s :
+```bash
+kubectl apply -f k8s/ollama-stack.yaml
+kubectl wait --for=condition=ready pod -l app=ollama -n ai-module --timeout=300s
+```
+
+Télécharger le modèle qwen2:0.5b dans le pod Ollama :
+```bash
+OLLAMA_POD=$(kubectl get pod -n ai-module -l app=ollama -o jsonpath='{.items[0].metadata.name}')
+kubectl exec -n ai-module $OLLAMA_POD -- ollama pull qwen2:0.5b
+```
+
+> Cette commande peut prendre 5-10 minutes selon la connexion réseau (modèle ~350 MB).
+
+Vérification :
+```bash
+kubectl exec -n ai-module $OLLAMA_POD -- ollama list
+# Doit afficher : qwen2:0.5b
+```
+
 ### 4.7 Prediction-service
+
+```bash
+kubectl apply -f k8s/prediction-service.yaml
+kubectl wait --for=condition=ready pod -l app=prediction-service -n ai-module --timeout=120s
+```
+
+Vérification du service :
+```bash
+kubectl exec -n ai-module deployment/prediction-service -- \
+  wget -qO- http://localhost:3001/health
+# Doit retourner : {"status":"ok","model":"qwen2:0.5b",...}
+```
+
 ### 4.8 CronJobs
+
+```bash
+kubectl apply -f k8s/cronjob.yaml
+kubectl apply -f k8s/cronjob-aggregator.yaml
+kubectl apply -f k8s/cronjob-auto-release.yaml
+kubectl apply -f k8s/cronjob-auto-reserve.yaml
+kubectl apply -f k8s/cronjob-cleanup.yaml
+kubectl apply -f k8s/cronjob-events.yaml
+```
+
+Vérification :
+```bash
+kubectl get cronjobs -n app-production
+# Tous les CronJobs doivent être listés avec SCHEDULE affiché
+```
+
 ### 4.9 Vérification finale
+
+Accéder à l'application dans un navigateur :
+```
+http://metrics.local
+```
+
+Si `metrics.local` ne résout pas, vérifier que `/etc/hosts` contient bien la ligne
+`192.168.10.213 metrics.local` sur la machine cliente.
+
+Tester la santé de tous les composants :
+```bash
+# Tous les pods en Running
+kubectl get pods --all-namespaces
+
+# Forcer le scraper immédiatement (sans attendre le cron)
+kubectl create job --from=cronjob/metrics-scraper manual-scraper-test -n app-production
+
+# Vérifier les logs de l'application
+kubectl logs -n app-production deployment/metrics-app --tail=20
+```
 
 ## 5. Guide utilisateur
 ### 5.1 Connexion

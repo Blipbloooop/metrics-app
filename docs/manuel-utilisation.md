@@ -6,8 +6,9 @@
 ## 1. Introduction
 
 **Projet :** metrics-app
-**Auteurs :** [Prénom Nom 1], [Prénom Nom 2]
-**Cours :** [Nom du cours]
+**Auteurs :** Romain Barthélémy, Jean-Baptiste RAFFI
+**Classe :** ETN A 5
+**Cours :** Projet R&D
 **Date :** Mai 2026
 
 ---
@@ -306,7 +307,7 @@ kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/cont
 Sur k8s-master :
 
 ```bash
-git clone https://github.com/<votre-org>/metrics-app.git /opt/metrics-app
+git clone https://github.com/Blipbloooop/metrics-app.git /opt/metrics-app
 cd /opt/metrics-app
 ```
 

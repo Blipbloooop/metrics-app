@@ -9,16 +9,40 @@ export default function ReservationForm() {
   const router = useRouter()
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
   const [message, setMessage] = useState<string | null>(null)
+
   const [namespaces, setNamespaces] = useState<string[]>([])
   const [nsLoading, setNsLoading] = useState(true)
+  const [namespace, setNamespace] = useState('')
+
+  const [deployments, setDeployments] = useState<string[]>([])
+  const [deploymentsLoading, setDeploymentsLoading] = useState(false)
 
   useEffect(() => {
     fetch('/api/namespaces')
       .then(r => r.json())
-      .then(data => setNamespaces(data.namespaces ?? []))
-      .catch(() => setNamespaces(['default', 'app-production']))
+      .then(data => {
+        const list: string[] = data.namespaces ?? []
+        setNamespaces(list)
+        if (list.length > 0) setNamespace(list[0])
+      })
+      .catch(() => {
+        const fallback = ['default', 'app-production']
+        setNamespaces(fallback)
+        setNamespace(fallback[0])
+      })
       .finally(() => setNsLoading(false))
   }, [])
+
+  useEffect(() => {
+    if (!namespace) return
+    setDeploymentsLoading(true)
+    setDeployments([])
+    fetch(`/api/deployments?namespace=${encodeURIComponent(namespace)}`)
+      .then(r => r.json())
+      .then(data => setDeployments(data.deployments ?? []))
+      .catch(() => setDeployments([]))
+      .finally(() => setDeploymentsLoading(false))
+  }, [namespace])
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault()
@@ -27,14 +51,14 @@ export default function ReservationForm() {
 
     const form = new FormData(e.currentTarget)
     const body = {
-      node_id:              form.get('node_id'),
-      deployment_name:      form.get('deployment_name'),
-      namespace:            form.get('namespace'),
-      cpu_per_replica:      parseFloat(form.get('cpu_per_replica') as string),
-      ram_per_replica:      parseFloat(form.get('ram_per_replica') as string),
-      replica_count:        parseInt(form.get('replica_count') as string, 10),
-      duration_minutes:     parseInt(form.get('duration_minutes') as string, 10),
-      reason:               form.get('reason') as string | null,
+      node_id:          form.get('node_id'),
+      deployment_name:  form.get('deployment_name'),
+      namespace:        form.get('namespace'),
+      cpu_per_replica:  parseFloat(form.get('cpu_per_replica') as string),
+      ram_per_replica:  parseFloat(form.get('ram_per_replica') as string),
+      replica_count:    parseInt(form.get('replica_count') as string, 10),
+      duration_minutes: parseInt(form.get('duration_minutes') as string, 10),
+      reason:           form.get('reason') as string | null,
     }
 
     try {
@@ -50,7 +74,6 @@ export default function ReservationForm() {
       } else {
         setStatus('success')
         setMessage(`Réservation créée — ID : ${data.reservation_id ?? '?'}`)
-        ;(e.target as HTMLFormElement).reset()
         router.refresh()
       }
     } catch {
@@ -58,6 +81,8 @@ export default function ReservationForm() {
       setMessage('Impossible de contacter le serveur')
     }
   }
+
+  const noDeployments = !deploymentsLoading && deployments.length === 0 && !!namespace
 
   return (
     <form onSubmit={handleSubmit} className="bg-gray-800 rounded-lg p-6 max-w-lg space-y-4">
@@ -71,20 +96,33 @@ export default function ReservationForm() {
         </div>
 
         <div>
-          <label className="block text-xs text-gray-400 mb-1">Deployment</label>
-          <input name="deployment_name" type="text" required placeholder="ex: mon-app"
-            className="w-full bg-gray-700 text-gray-100 rounded-lg px-3 py-2 text-sm border border-gray-600 focus:outline-none focus:border-blue-500" />
-        </div>
-
-        <div>
           <label className="block text-xs text-gray-400 mb-1">Namespace</label>
           <select name="namespace" required disabled={nsLoading}
+            value={namespace}
+            onChange={e => setNamespace(e.target.value)}
             className="w-full bg-gray-700 text-gray-100 rounded-lg px-3 py-2 text-sm border border-gray-600 focus:outline-none focus:border-blue-500 disabled:opacity-50">
             {nsLoading
               ? <option value="">Chargement…</option>
               : namespaces.map(ns => <option key={ns} value={ns}>{ns}</option>)
             }
           </select>
+        </div>
+
+        <div>
+          <label className="block text-xs text-gray-400 mb-1">Deployment</label>
+          <select name="deployment_name" required
+            disabled={deploymentsLoading || noDeployments}
+            className="w-full bg-gray-700 text-gray-100 rounded-lg px-3 py-2 text-sm border border-gray-600 focus:outline-none focus:border-blue-500 disabled:opacity-50">
+            {deploymentsLoading
+              ? <option value="">Chargement…</option>
+              : noDeployments
+                ? <option value="">Aucun deployment</option>
+                : deployments.map(d => <option key={d} value={d}>{d}</option>)
+            }
+          </select>
+          {noDeployments && (
+            <p className="text-xs text-yellow-500 mt-1">Aucun deployment dans ce namespace.</p>
+          )}
         </div>
 
         <div>
@@ -128,7 +166,7 @@ export default function ReservationForm() {
         </p>
       )}
 
-      <button type="submit" disabled={status === 'loading'}
+      <button type="submit" disabled={status === 'loading' || noDeployments}
         className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded-lg py-2 text-sm font-medium transition-colors">
         {status === 'loading' ? 'Réservation en cours…' : 'Réserver les ressources'}
       </button>

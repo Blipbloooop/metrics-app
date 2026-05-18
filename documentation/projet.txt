@@ -1,0 +1,38 @@
+Projet 5 : Application Web Anticipant la Réservation de Ressources Serveur
+Responsable : Ghassan Oreiby
+Contexte
+Les infrastructures cloud et les environnements virtuels modernes hébergent des milliers de
+services et d’applications simultanés. Or, la demande en ressources (CPU, mémoire, I/O,
+réseau...) varie fortement dans le temps : pics de charge, périodes creuses, comportements
+utilisateurs saisonniers...
+Une allocation statique ou manuelle des ressources entraîne :
+• Sous-allocation → temps de réponse trop long, SLA non respectés.
+• Sur-allocation → coût inutile, inefficacité énergétique.
+Description du sujet
+Notre objectif est de créer une pile d’application web capable de :
+• Collecter l’historique d’utilisation des ressources serveur (logs, métriques temps réel).
+• Entraîner des modèles prédictifs (ML / statistique) afin d’estimer la charge future sur
+chaque serveur.
+• Réserver / libérer automatiquement les ressources en fonction de ces prédictions,
+tout en garantissant une expérience utilisateur optimale (latence, disponibilité).
+• Fournir une interface utilisateur (dashboard, API) pour visualiser la charge, les
+prévisions et intervenir manuellement si besoin.
+Travail à réaliser
+Réservation automatisée : Un cluster de serveurs reçoit une demande de traitement de
+données pour une période future. L’API récupère les prévisions, identifie un cluster avec un
+besoin de ressources faible et réserve dynamiquement le nombre de containers requis.
+Libération proactive : Une tâche planifiée se termine. Le système libère automatiquement
+les ressources, les réaffectant à d’autres processus en attente.
+Alertes manuelles : L’administrateur voit une prédiction de pic de charge sur un serveur
+critique et peut intervenir en augmentant les ressources à l’avance.
+Outils
+Ollama, nodejs, VSCode, k8s
+
+9
+
+Livrables
+Le prototype de l’application (code, conteneurs, etc.)
+Compétences souhaitées et/ou prérequis
+Programmation, Systèmes & réseaux
+Compétences acquises
+Ingénierie logicielle, Machine Learning/Data science, Scalability
